@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workouts — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="workouts">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Training Sequence</h1><p class="page-sub">Plan, log, and review your strength training.</p></div>
+        <button type="button" class="btn btn-primary" id="create-workout-btn">Create workout</button>
+      </div>
+
+      <section class="panel panel-pad" aria-labelledby="split-heading" style="margin-bottom:var(--sp-5)">
+        <div class="panel-head"><div><h2 class="panel-title" id="split-heading">Current Training Split</h2><p class="panel-sub">This week</p></div></div>
+        <div class="grid grid-cols-6" id="split-strip" style="grid-template-columns:repeat(7,1fr)"></div>
+      </section>
+
+      <div class="home-grid">
+        <div class="stack col-left">
+          <section class="panel panel-pad" aria-labelledby="upcoming-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="upcoming-heading">Upcoming Workout</h2><p class="panel-sub" id="upcoming-sub"></p></div>
+            </div>
+            <ul id="upcoming-exercise-list"></ul>
+            <div class="hero-actions" style="justify-content:flex-start;margin-top:var(--sp-4)">
+              <a class="btn btn-primary btn-sm" href="workout-session.html">Start workout</a>
+              <button type="button" class="btn btn-ghost btn-sm" id="reschedule-btn">Reschedule</button>
+            </div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="templates-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="templates-heading">Workout Templates</h2><p class="panel-sub">Reusable training blocks</p></div>
+            </div>
+            <div class="grid grid-cols-2" id="template-grid"></div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="search-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="search-heading">Exercise Search</h2></div></div>
+            <div class="field"><label for="exercise-search" class="visually-hidden">Search exercises</label><input id="exercise-search" type="search" placeholder="Search exercises by name…"></div>
+            <ul id="exercise-search-results" style="margin-top:var(--sp-3)"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="history-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="history-heading">Recent Workout History</h2></div></div>
+            <ul id="history-list"></ul>
+          </section>
+        </div>
+
+        <div class="stack col-right">
+          <section class="panel panel-pad" aria-labelledby="pr-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="pr-heading">Personal Records</h2></div></div>
+            <ul id="pr-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="muscle-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="muscle-heading">Weekly Sets per Muscle Group</h2></div></div>
+            <canvas id="muscle-chart" style="width:100%;height:140px" role="img" aria-describedby="muscle-summary"></canvas>
+            <p class="visually-hidden" id="muscle-summary"></p>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="strength-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="strength-heading">Strength Trend</h2><p class="panel-sub">Estimated 1RM index, last 12 weeks</p></div></div>
+            <canvas id="strength-chart" style="width:100%;height:120px" role="img" aria-describedby="strength-summary"></canvas>
+            <p class="visually-hidden" id="strength-summary"></p>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts;
+
+  function fmtTime(t) { var p = t.split(':'); var h = parseInt(p[0], 10); var am = h >= 12 ? 'PM' : 'AM'; var h12 = h % 12 === 0 ? 12 : h % 12; return h12 + ':' + p[1] + ' ' + am; }
+
+  function renderSplit() {
+    var today = new Date().toLocaleDateString('en-US', { weekday: 'short' });
+    document.getElementById('split-strip').innerHTML = State.data.workouts.split.map(function (d) {
+      var isToday = d.day === today;
+      return '<div style="text-align:center;padding:12px 6px;border-radius:var(--r-md);border:1px solid ' + (isToday ? 'var(--accent-cyan)' : 'var(--hairline)') + ';' + (isToday ? 'background:var(--accent-cyan-soft);' : '') + '">' +
+        '<p class="label-tag" style="margin-bottom:6px">' + d.day + '</p>' +
+        '<p style="font-size:12.5px;font-weight:600;' + (d.name === 'Rest' ? 'color:var(--text-tertiary)' : '') + '">' + d.name + '</p></div>';
+    }).join('');
+  }
+
+  function renderUpcoming() {
+    var w = State.data.workouts.today;
+    document.getElementById('upcoming-sub').textContent = w.name + ' · ' + fmtTime(w.time) + ' · ~' + w.durationMin + ' min' + (w.rescheduled ? ' (rescheduled to tomorrow)' : '');
+    document.getElementById('upcoming-exercise-list').innerHTML = w.exercises.map(function (ex) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + App.escapeHtml(ex.name) + '</span><span class="mono" style="font-size:12px;color:var(--text-tertiary)">' + ex.sets + ' × ' + ex.reps + ' @ ' + ex.weight + ex.unit + '</span></li>';
+    }).join('');
+  }
+
+  function renderTemplates() {
+    document.getElementById('template-grid').innerHTML = State.data.workouts.templates.map(function (t) {
+      return '<div class="metric-card" style="cursor:default"><span class="metric-label">' + t.name + '</span><span style="font-size:12px;color:var(--text-tertiary)">' + t.exerciseCount + ' exercises · ~' + t.estMinutes + ' min</span></div>';
+    }).join('');
+  }
+
+  function renderHistory() {
+    document.getElementById('history-list').innerHTML = State.data.workouts.history.map(function (h) {
+      return '<li class="list-row"><span style="flex:1"><strong style="font-size:13.5px">' + h.name + '</strong><br><span style="font-size:12px;color:var(--text-tertiary)">' + h.date + ' · ' + h.durationMin + ' min · ' + h.sets + ' sets</span></span><span class="mono" style="font-size:12.5px">' + h.volumeLb.toLocaleString() + ' lb</span></li>';
+    }).join('');
+  }
+
+  function renderPRs() {
+    document.getElementById('pr-list').innerHTML = State.data.workouts.personalRecords.map(function (pr) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + pr.exercise + '</span><span class="mono" style="font-size:12.5px;color:var(--accent-cyan)">' + pr.weight + ' lb × ' + pr.reps + '</span></li>';
+    }).join('');
+  }
+
+  function renderMuscleChart() {
+    var data = State.data.workouts.weeklySetsByMuscle;
+    var labels = Object.keys(data);
+    var values = labels.map(function (k) { return data[k]; });
+    Charts.barChart(document.getElementById('muscle-chart'), values, { labels: labels, color: '#38bdf8' });
+    document.getElementById('muscle-summary').textContent = 'Weekly sets per muscle group: ' + labels.map(function (l, i) { return l + ' ' + values[i]; }).join(', ') + '.';
+  }
+
+  function renderStrengthChart() {
+    var series = State.data.workouts.strengthTrend;
+    Charts.lineChart(document.getElementById('strength-chart'), series, { fill: true, color: '#22d3ee' });
+    document.getElementById('strength-summary').textContent = Charts.summary(series, 'Estimated strength index', '');
+  }
+
+  function exerciseLibrary() {
+    var list = State.data.workouts.today.exercises.map(function (e) { return e.name; });
+    State.data.workouts.personalRecords.forEach(function (pr) { if (list.indexOf(pr.exercise) === -1) list.push(pr.exercise); });
+    ['Barbell Row', 'Romanian Deadlift', 'Leg Press', 'Hip Thrust', 'Face Pull', 'Hammer Curl', 'Dumbbell Bench Press'].forEach(function (n) { if (list.indexOf(n) === -1) list.push(n); });
+    return list;
+  }
+  function renderSearch(query) {
+    var lib = exerciseLibrary();
+    var filtered = query ? lib.filter(function (n) { return n.toLowerCase().indexOf(query.toLowerCase()) !== -1; }) : [];
+    var host = document.getElementById('exercise-search-results');
+    if (!query) { host.innerHTML = ''; return; }
+    host.innerHTML = filtered.length ? filtered.map(function (n) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + n + '</span><span class="tag status-info">Library</span></li>';
+    }).join('') : '<li class="empty-state"><p>No exercises match "' + App.escapeHtml(query) + '".</p></li>';
+  }
+  document.getElementById('exercise-search').addEventListener('input', function (e) { renderSearch(e.target.value.trim()); });
+
+  document.getElementById('reschedule-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Reschedule workout',
+      body: 'Move ' + State.data.workouts.today.name + ' from today at ' + fmtTime(State.data.workouts.today.time) + ' to tomorrow at the same time?',
+      confirmLabel: 'Reschedule',
+      onConfirm: function () { State.data.workouts.today.rescheduled = true; State.save(); App.showToast('Workout rescheduled to tomorrow.', 'success'); renderUpcoming(); }
+    });
+  });
+
+  document.getElementById('create-workout-btn').addEventListener('click', function () {
+    var name = window.prompt('New workout name (e.g. "Pull Day")');
+    if (!name) return;
+    State.data.workouts.templates.push({ id: 't' + Date.now(), name: name, exerciseCount: 0, estMinutes: 45 });
+    State.save();
+    App.showToast('"' + name + '" template created.', 'success');
+    renderTemplates();
+  });
+
+  function renderAll() { renderSplit(); renderUpcoming(); renderTemplates(); renderHistory(); renderPRs(); renderMuscleChart(); renderStrengthChart(); }
+  renderAll();
+  document.addEventListener('lifeos:state-changed', renderAll);
+})();
+</script>
+</body>
+</html>

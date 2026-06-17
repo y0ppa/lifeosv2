@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Connections — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="integrations">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">System Connections</h1><p class="page-sub">Manage the data sources LifeOS uses to build your briefings.</p></div>
+      </div>
+      <div class="grid grid-cols-3" id="integrations-grid"></div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+
+  function cardHtml(it) {
+    var statusTag = it.connected ? '<span class="tag status-good">Connected</span>' : '<span class="tag status-neutral">Disconnected</span>';
+    return '<section class="panel panel-pad" aria-labelledby="int-' + it.id + '">' +
+      '<div class="panel-head"><div><h2 class="panel-title" id="int-' + it.id + '" style="font-size:14.5px">' + it.name + '</h2>' +
+      '<p class="panel-sub">' + (it.connected ? 'Last sync: ' + it.lastSync : 'Not connected') + '</p></div>' + statusTag + '</div>' +
+      (it.error ? '<p style="font-size:12px;color:var(--accent-amber);margin-bottom:10px">' + ICONS.warning + ' ' + App.escapeHtml(it.error) + '</p>' : '') +
+      '<p class="label-tag" style="margin-bottom:6px">Permissions</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:var(--sp-4)">' + it.permissions.map(function (p) { return '<span class="tag status-info">' + p + '</span>'; }).join('') + '</div>' +
+      '<div class="hero-actions" style="justify-content:flex-start;margin-top:0">' +
+      (it.connected
+        ? '<button type="button" class="btn btn-secondary btn-sm" data-disconnect="' + it.id + '">Disconnect</button><button type="button" class="btn btn-ghost btn-sm" data-delete="' + it.id + '">Delete imported data</button>'
+        : '<button type="button" class="btn btn-primary btn-sm" data-connect="' + it.id + '">Connect</button>') +
+      '</div></section>';
+  }
+
+  function render() {
+    document.getElementById('integrations-grid').innerHTML = State.data.integrations.map(cardHtml).join('');
+    document.querySelectorAll('[data-connect]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var it = State.data.integrations.filter(function (x) { return x.id === btn.getAttribute('data-connect'); })[0];
+        it.connected = true;
+        it.lastSync = 'Just now';
+        it.error = null;
+        State.save();
+        App.showToast(it.name + ' connected.', 'success');
+        render();
+      });
+    });
+    document.querySelectorAll('[data-disconnect]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var it = State.data.integrations.filter(function (x) { return x.id === btn.getAttribute('data-disconnect'); })[0];
+        App.confirmAction({
+          title: 'Disconnect ' + it.name,
+          body: 'LifeOS will stop syncing data from ' + it.name + '. Previously imported data will remain unless you delete it separately.',
+          confirmLabel: 'Disconnect',
+          danger: true,
+          onConfirm: function () {
+            it.connected = false; it.lastSync = null; State.save();
+            App.showToast(it.name + ' disconnected.', 'info');
+            render();
+          }
+        });
+      });
+    });
+    document.querySelectorAll('[data-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var it = State.data.integrations.filter(function (x) { return x.id === btn.getAttribute('data-delete'); })[0];
+        App.confirmAction({
+          title: 'Delete imported data',
+          body: 'Permanently delete all data imported from ' + it.name + '? This cannot be undone.',
+          confirmLabel: 'Delete data',
+          danger: true,
+          onConfirm: function () { App.showToast('Imported data from ' + it.name + ' deleted.', 'success'); }
+        });
+      });
+    });
+  }
+  render();
+  document.addEventListener('lifeos:state-changed', render);
+})();
+</script>
+</body>
+</html>

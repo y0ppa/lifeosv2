@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS — Command Center</title>
+<meta name="description" content="LifeOS Command Center — your AI-assisted health and productivity dashboard.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="home">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<!-- Boot sequence: shown once per browser session, skippable -->
+<div class="boot-overlay" id="boot-overlay">
+  <div class="boot-mark">
+    <svg viewBox="0 0 72 72" fill="none">
+      <circle class="boot-ring" cx="36" cy="36" r="30" stroke-width="2"></circle>
+      <circle class="boot-ring-active" cx="36" cy="36" r="30" stroke-width="2"></circle>
+      <circle cx="36" cy="36" r="4" fill="#22d3ee"></circle>
+    </svg>
+  </div>
+  <h1 class="boot-title">Life<span>OS</span></h1>
+  <p class="boot-status">Initializing…</p>
+  <div class="boot-bar"><div class="boot-bar-fill"></div></div>
+  <button type="button" class="boot-skip">Skip</button>
+</div>
+
+<div id="global-modals-root"></div>
+
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+
+  <div class="main">
+    <div id="topbar-root"></div>
+
+    <main class="content" id="main-content">
+      <!-- Center: AI orb + briefing + suggested commands -->
+      <section class="command-hero" aria-labelledby="briefing-heading">
+        <div class="command-hero-content">
+          <p class="label-tag">Daily Briefing</p>
+          <div class="orb-wrap" style="--orb-size:176px" id="home-orb-wrap">
+            <canvas data-orb id="home-orb" aria-hidden="true"></canvas>
+            <button type="button" class="orb-mic-btn" id="home-mic-btn" data-state="idle" aria-label="Activate ARIA voice assistant">
+              <span id="home-mic-icon"></span>
+            </button>
+          </div>
+          <div class="orb-status-row">
+            <span class="orb-state-label" id="home-orb-state">ARIA — Idle</span>
+          </div>
+          <p class="orb-transcript" id="home-transcript" aria-live="polite"></p>
+          <h2 id="briefing-heading" class="visually-hidden">Daily briefing from ARIA</h2>
+          <p class="briefing-text" id="briefing-text">Loading your briefing…</p>
+          <div class="suggested-cmds" id="suggested-cmds"></div>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="assistant.html">Ask assistant</a>
+            <button type="button" class="btn btn-secondary" id="plan-day-btn">Plan my day</button>
+            <button type="button" class="btn btn-ghost" id="view-details-btn">View details</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="home-grid">
+        <!-- Left panel -->
+        <div class="stack col-left">
+          <section class="panel panel-pad" aria-labelledby="timeline-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="timeline-heading">Today's Timeline</h2><p class="panel-sub">Calendar &amp; focus events</p></div>
+              <a class="panel-link" href="work.html">Open Work Queue</a>
+            </div>
+            <ul id="timeline-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="tasks-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="tasks-heading">Work Queue</h2><p class="panel-sub">Tasks &amp; deadlines</p></div>
+              <button type="button" class="btn btn-ghost btn-sm" id="home-add-task-btn">Add task</button>
+            </div>
+            <ul id="task-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="followups-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="followups-heading">Application Follow-ups</h2><p class="panel-sub">Pipeline activity due soon</p></div>
+              <a class="panel-link" href="applications.html">View pipeline</a>
+            </div>
+            <ul id="followup-list"></ul>
+          </section>
+        </div>
+
+        <!-- Right panel -->
+        <div class="stack col-right">
+          <section aria-labelledby="progress-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="progress-heading">Nutrition &amp; Recovery Status</h2><p class="panel-sub">Today's targets</p></div>
+            </div>
+            <div class="grid grid-cols-3" id="metric-grid"></div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="nutrition-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="nutrition-heading">Nutrition Status</h2><p class="panel-sub" id="nutrition-sub">Macro breakdown</p></div>
+              <a class="panel-link" href="nutrition.html">View nutrition</a>
+            </div>
+            <div id="macro-bars"></div>
+            <div class="hero-actions" style="justify-content:flex-start;margin-top:var(--sp-4)">
+              <button type="button" class="btn btn-secondary btn-sm" id="home-add-meal-btn">Add meal</button>
+              <button type="button" class="btn btn-ghost btn-sm" id="home-scan-food-btn">Scan food</button>
+            </div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="weight-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="weight-heading">Weight Trend</h2><p class="panel-sub" id="weight-sub"></p></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="home-log-weight-btn">Log weight</button>
+            </div>
+            <div class="grid grid-cols-3" id="weight-stats" style="margin-bottom:var(--sp-3)"></div>
+            <canvas id="weight-chart" style="width:100%;height:80px" role="img" aria-describedby="weight-chart-summary"></canvas>
+            <p class="visually-hidden" id="weight-chart-summary"></p>
+          </section>
+        </div>
+      </div>
+
+      <!-- Lower panel -->
+      <div class="lower-grid">
+        <section class="panel panel-pad" aria-labelledby="protocol-heading">
+          <div class="panel-head">
+            <div><h2 class="panel-title" id="protocol-heading">Active Protocol</h2><p class="panel-sub" id="protocol-sub"></p></div>
+          </div>
+          <ul id="exercise-preview-list" style="margin-bottom:var(--sp-4)"></ul>
+          <div class="hero-actions" style="justify-content:flex-start">
+            <a class="btn btn-primary btn-sm" href="workout-session.html" id="start-workout-btn">Start workout</a>
+            <button type="button" class="btn btn-ghost btn-sm" id="reschedule-workout-btn">Reschedule</button>
+          </div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="habits-heading">
+          <div class="panel-head">
+            <div><h2 class="panel-title" id="habits-heading">Habit Systems</h2><p class="panel-sub" id="habits-sub"></p></div>
+            <a class="panel-link" href="habits.html">View all</a>
+          </div>
+          <div id="home-habit-list"></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="pipeline-heading">
+          <div class="panel-head">
+            <div><h2 class="panel-title" id="pipeline-heading">Application Pipeline</h2><p class="panel-sub">Stage summary</p></div>
+            <a class="panel-link" href="applications.html">Add application</a>
+          </div>
+          <div id="pipeline-summary"></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="weekly-heading">
+          <div class="panel-head">
+            <div><h2 class="panel-title" id="weekly-heading">Weekly Analysis</h2><p class="panel-sub">Last 7 days</p></div>
+            <a class="panel-link" href="insights.html">Full insights</a>
+          </div>
+          <div id="weekly-insight-list"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts, ICONS = App.ICONS;
+
+  function fmtTime(t) {
+    var p = t.split(':'); var h = parseInt(p[0], 10); var am = h >= 12 ? 'PM' : 'AM'; var h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + p[1] + ' ' + am;
+  }
+
+  function renderBriefing() {
+    document.getElementById('briefing-text').textContent = LifeOS.Commands.briefingText();
+    var chips = ['Plan my day', 'Analyze my weight trend', 'Suggest a meal', 'Show upcoming deadlines'];
+    document.getElementById('suggested-cmds').innerHTML = chips.map(function (c) {
+      return '<button type="button" class="suggested-chip" data-cmd="' + c + '">' + c + '</button>';
+    }).join('');
+    document.querySelectorAll('[data-cmd]').forEach(function (btn) {
+      btn.addEventListener('click', function () { runCommand(btn.getAttribute('data-cmd')); });
+    });
+  }
+
+  function renderTimeline() {
+    var html = State.data.work.events.map(function (ev) {
+      return '<li class="list-row"><span class="mono" style="font-size:12px;color:var(--text-tertiary);width:48px;flex-shrink:0">' + fmtTime(ev.time) + '</span><span style="font-size:13.5px">' + App.escapeHtml(ev.title) + '</span></li>';
+    }).join('') || '<li class="empty-state"><p>No events scheduled.</p></li>';
+    document.getElementById('timeline-list').innerHTML = html;
+  }
+
+  function renderTasks() {
+    var tasks = State.data.work.tasks.filter(function (t) { return !t.completed; }).slice(0, 4);
+    document.getElementById('task-list').innerHTML = tasks.map(function (t) {
+      return '<li class="list-row"><span class="priority-dot priority-' + t.priority + '"></span><span style="flex:1;font-size:13.5px">' + App.escapeHtml(t.title) + '</span><span style="font-size:11.5px;color:var(--text-tertiary)" class="mono">' + App.escapeHtml(t.due) + '</span></li>';
+    }).join('') || '<li class="empty-state"><p>You\'re all caught up.</p></li>';
+  }
+
+  function renderFollowups() {
+    var apps = State.data.applications.filter(function (a) { return a.followUp; }).slice(0, 3);
+    document.getElementById('followup-list').innerHTML = apps.map(function (a) {
+      return '<li class="list-row"><span style="flex:1"><strong style="font-size:13.5px">' + App.escapeHtml(a.company) + '</strong><br><span style="font-size:12px;color:var(--text-tertiary)">' + App.escapeHtml(a.role) + '</span></span><span class="tag status-info">' + a.status + '</span></li>';
+    }).join('') || '<li class="empty-state"><p>No follow-ups due.</p></li>';
+  }
+
+  var METRICS = [
+    { key: 'calories', label: 'Calories', icon: 'flame', unit: 'kcal', accent: 'var(--accent-amber)' },
+    { key: 'protein', label: 'Protein', icon: 'dumbbell', unit: 'g', accent: 'var(--accent-cyan)' },
+    { key: 'fiber', label: 'Fiber', icon: 'fiber', unit: 'g', accent: 'var(--accent-green)' },
+    { key: 'waterOz', label: 'Water', icon: 'water', unit: 'oz', accent: 'var(--accent-blue)' },
+    { key: 'steps', label: 'Steps', icon: 'footsteps', unit: '', accent: 'var(--accent-cyan)', countKey: 'count' },
+    { key: 'sleep', label: 'Sleep', icon: 'sleep', unit: 'h', accent: 'var(--accent-blue)', special: 'sleep' }
+  ];
+
+  function renderMetrics() {
+    var html = METRICS.map(function (m) {
+      var d = State.data.today[m.key];
+      var current, target, display;
+      if (m.special === 'sleep') {
+        current = d.hours + d.minutes / 60; target = d.target;
+        display = d.hours + 'h ' + d.minutes + 'm <small>/ ' + target + 'h</small>';
+      } else {
+        current = m.countKey ? d[m.countKey] : d.consumed;
+        target = d.target;
+        display = current.toLocaleString() + ' <small>/ ' + target.toLocaleString() + (m.unit ? ' ' + m.unit : '') + '</small>';
+      }
+      var p = App.pct(current, target);
+      var status = App.statusFor(p);
+      var href = m.key === 'steps' || m.special === 'sleep' ? 'insights.html' : 'nutrition.html';
+      return '<a class="metric-card" href="' + href + '">' +
+        '<div class="metric-head"><span class="metric-icon" style="background:color-mix(in srgb,' + m.accent + ' 16%, transparent); color:' + m.accent + '">' + ICONS[m.icon] + '</span><span class="metric-status ' + status.cls + '">' + status.text + '</span></div>' +
+        '<span class="metric-label">' + m.label + '</span>' +
+        '<span class="metric-value">' + display + '</span>' +
+        '<div class="progress-track"><div class="progress-fill" style="width:' + p + '%;background:' + m.accent + '"></div></div>' +
+        '</a>';
+    }).join('');
+    document.getElementById('metric-grid').innerHTML = html;
+  }
+
+  function renderMacros() {
+    var t = State.data.today;
+    var rows = [
+      { label: 'Protein', c: t.protein.consumed, g: t.protein.target, color: 'var(--accent-cyan)' },
+      { label: 'Carbs', c: t.carbs.consumed, g: t.carbs.target, color: 'var(--accent-blue)' },
+      { label: 'Fat', c: t.fat.consumed, g: t.fat.target, color: 'var(--accent-amber)' }
+    ];
+    document.getElementById('nutrition-sub').textContent = (t.calories.target - t.calories.consumed) + ' kcal remaining · ' + State.data.nutrition.meals.length + ' meals logged';
+    document.getElementById('macro-bars').innerHTML = rows.map(function (r) {
+      var p = App.pct(r.c, r.g);
+      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span>' + r.label + '</span><span class="mono" style="color:var(--text-tertiary)">' + r.c + 'g / ' + r.g + 'g</span></div><div class="progress-track"><div class="progress-fill" style="width:' + p + '%;background:' + r.color + '"></div></div></div>';
+    }).join('');
+  }
+
+  function renderWeight() {
+    var hist = State.data.weight.history;
+    var current = hist[hist.length - 1].value;
+    var weekAgo = hist[Math.max(0, hist.length - 8)].value;
+    var delta = Math.round((current - weekAgo) * 10) / 10;
+    var goal = State.data.weight.goal;
+    var progressToGoal = Math.round(Math.min(100, Math.max(0, (1 - Math.abs(current - goal) / Math.abs(hist[0].value - goal)) * 100)));
+    document.getElementById('weight-sub').textContent = 'Goal ' + goal + ' lb';
+    document.getElementById('weight-stats').innerHTML =
+      '<div><p class="label-tag">Current</p><p class="metric-value mono" style="font-size:17px">' + current + ' lb</p></div>' +
+      '<div><p class="label-tag">7-day change</p><p class="metric-value mono" style="font-size:17px;color:' + (delta <= 0 ? 'var(--accent-green)' : 'var(--accent-amber)') + '">' + (delta > 0 ? '+' : '') + delta + ' lb</p></div>' +
+      '<div><p class="label-tag">To goal</p><p class="metric-value mono" style="font-size:17px">' + progressToGoal + '%</p></div>';
+    Charts.lineChart(document.getElementById('weight-chart'), hist.slice(-30), { fill: true, color: '#22d3ee', goal: goal });
+    document.getElementById('weight-chart-summary').textContent = Charts.summary(hist.slice(-30), 'Body weight', ' lb');
+  }
+
+  function renderWorkout() {
+    var w = State.data.workouts.today;
+    document.getElementById('protocol-sub').textContent = w.name + ' · ' + fmtTime(w.time) + ' · ~' + w.durationMin + ' min' + (w.completed ? ' · Completed' : w.rescheduled ? ' · Rescheduled' : '');
+    document.getElementById('exercise-preview-list').innerHTML = w.exercises.slice(0, 4).map(function (ex) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + App.escapeHtml(ex.name) + '</span><span class="mono" style="font-size:12px;color:var(--text-tertiary)">' + ex.sets + '×' + ex.reps + '</span></li>';
+    }).join('') + (w.exercises.length > 4 ? '<li style="font-size:12px;color:var(--text-tertiary);padding-top:6px">+' + (w.exercises.length - 4) + ' more exercises</li>' : '');
+  }
+
+  function renderHomeHabits() {
+    var habits = State.data.habits.slice(0, 5);
+    document.getElementById('habits-sub').textContent = habits.filter(function (h) { return h.completedToday; }).length + ' of ' + habits.length + ' complete today';
+    document.getElementById('home-habit-list').innerHTML = habits.map(function (h) {
+      return '<div class="habit-row" data-done="' + h.completedToday + '">' +
+        '<button type="button" class="habit-check" data-habit-toggle="' + h.id + '" aria-pressed="' + h.completedToday + '" aria-label="Mark ' + App.escapeHtml(h.name) + ' complete">' + ICONS.check + '</button>' +
+        '<span class="habit-name">' + App.escapeHtml(h.name) + '</span>' +
+        '<span class="habit-streak">' + h.streak + 'd streak</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderPipeline() {
+    var stages = ['Preparing', 'Applied', 'Assessment', 'Interview', 'Offer'];
+    var counts = {};
+    State.data.applications.forEach(function (a) { counts[a.status] = (counts[a.status] || 0) + 1; });
+    document.getElementById('pipeline-summary').innerHTML = '<div class="grid grid-cols-3" style="gap:8px">' + stages.map(function (s) {
+      return '<div style="text-align:center;padding:10px;border-radius:var(--r-sm);border:1px solid var(--hairline)"><p class="metric-value mono" style="font-size:18px">' + (counts[s] || 0) + '</p><p style="font-size:10.5px;color:var(--text-tertiary)">' + s + '</p></div>';
+    }).join('') + '</div>';
+  }
+
+  function renderWeeklyInsights() {
+    var ins = State.data.insights;
+    function last7avg(arr) { var s = arr.slice(-7); return Math.round(Charts.values(s).reduce(function (a, b) { return a + b; }, 0) / s.length); }
+    var items = [
+      { label: 'Avg calories', value: last7avg(ins.calories) + ' kcal' },
+      { label: 'Avg protein', value: last7avg(ins.protein) + ' g' },
+      { label: 'Workouts done', value: State.data.workouts.history.length },
+      { label: 'Avg steps', value: last7avg(ins.steps).toLocaleString() },
+      { label: 'Habit completion', value: last7avg(ins.habitCompletion) + '%' },
+      { label: 'Applications sent', value: State.data.applications.filter(function (a) { return a.dateApplied; }).length }
+    ];
+    document.getElementById('weekly-insight-list').innerHTML = items.map(function (i) {
+      return '<div class="list-row"><span style="flex:1;font-size:13px;color:var(--text-secondary)">' + i.label + '</span><span class="mono" style="font-size:13px;font-weight:600">' + i.value + '</span></div>';
+    }).join('');
+  }
+
+  function renderAll() {
+    renderBriefing(); renderTimeline(); renderTasks(); renderFollowups();
+    renderMetrics(); renderMacros(); renderWeight(); renderWorkout();
+    renderHomeHabits(); renderPipeline(); renderWeeklyInsights();
+  }
+  renderAll();
+  ['lifeos:state-changed'].forEach(function (evt) { document.addEventListener(evt, renderAll); });
+
+  document.getElementById('home-add-task-btn').addEventListener('click', function () { App.openModal('modal-add-task'); });
+  document.getElementById('home-add-meal-btn').addEventListener('click', function () { App.openModal('modal-add-meal'); });
+  document.getElementById('home-log-weight-btn').addEventListener('click', function () { App.openModal('modal-log-weight'); });
+  document.getElementById('home-scan-food-btn').addEventListener('click', function () { App.showToast('Barcode scanning needs camera access — try it on the Nutrition page.', 'info'); });
+  document.getElementById('start-workout-btn').addEventListener('click', function () {});
+  document.getElementById('reschedule-workout-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Reschedule workout',
+      body: 'Move ' + State.data.workouts.today.name + ' from today at ' + fmtTime(State.data.workouts.today.time) + ' to tomorrow at the same time?',
+      confirmLabel: 'Reschedule',
+      onConfirm: function () {
+        State.data.workouts.today.rescheduled = true;
+        State.save();
+        App.showToast('Workout rescheduled to tomorrow.', 'success');
+      }
+    });
+  });
+  document.getElementById('view-details-btn').addEventListener('click', function () { window.location.href = 'insights.html'; });
+  document.getElementById('plan-day-btn').addEventListener('click', function () { runCommand('Plan my day'); });
+
+  // ---- orb + voice wiring on the home hero ----
+  var orb = LifeOS.createOrb(document.getElementById('home-orb'));
+  LifeOS.Voice.setOrb(orb);
+  document.getElementById('home-mic-icon').innerHTML = ICONS.mic;
+  var micBtn = document.getElementById('home-mic-btn');
+  var stateLabel = document.getElementById('home-orb-state');
+  var transcriptEl = document.getElementById('home-transcript');
+
+  LifeOS.Voice.on('state', function (s) {
+    micBtn.setAttribute('data-state', s);
+    stateLabel.textContent = 'ARIA — ' + s.charAt(0).toUpperCase() + s.slice(1);
+  });
+  LifeOS.Voice.on('transcript', function (t) {
+    transcriptEl.textContent = t.text;
+    transcriptEl.classList.toggle('is-final', t.isFinal);
+    if (t.isFinal) handleUtterance(t.text);
+  });
+  LifeOS.Voice.on('error', function (err) {
+    if (err === 'unsupported') {
+      App.showToast('Voice recognition isn’t supported in this browser. Try the Assistant chat instead.', 'warn');
+    } else if (err === 'mic-permission-denied' || err === 'not-allowed') {
+      App.showToast('Microphone permission was denied.', 'warn');
+    }
+  });
+
+  micBtn.addEventListener('click', function () {
+    if (LifeOS.Voice.getState() === 'listening') { LifeOS.Voice.stop(); }
+    else if (!LifeOS.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Use the Assistant chat page instead.', 'warn'); }
+    else { LifeOS.Voice.start(); }
+  });
+
+  function handleUtterance(text) {
+    runCommand(text);
+  }
+
+  function runCommand(text) {
+    var result = LifeOS.Commands.process(text);
+    if (result.silent) return;
+    if (result.needsConfirm) {
+      LifeOS.Voice.setState('confirm');
+      App.confirmAction({
+        title: 'Confirm action',
+        body: result.reply,
+        confirmLabel: 'Confirm',
+        onConfirm: function () {
+          var msg = result.onConfirm();
+          document.getElementById('briefing-text').textContent = msg;
+          LifeOS.Voice.speak(msg);
+        },
+        onCancel: function () { LifeOS.Voice.setState('idle'); }
+      });
+      return;
+    }
+    if (result.action) result.action();
+    if (result.reply) {
+      document.getElementById('briefing-text').textContent = result.reply;
+      LifeOS.Voice.speak(result.reply);
+    }
+    if (result.navigate) {
+      setTimeout(function () { window.location.href = result.navigate; }, 900);
+    }
+  }
+})();
+</script>
+</body>
+</html>

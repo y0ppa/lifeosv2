@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Analysis — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="insights">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Weekly Analysis</h1><p class="page-sub">Trends across nutrition, training, habits, and work.</p></div>
+      </div>
+
+      <div class="tabs" id="range-tabs" role="tablist" aria-label="Date range" style="margin-bottom:var(--sp-3)">
+        <button type="button" class="tab-btn" role="tab" aria-selected="true" data-range="7">7 days</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-range="30">30 days</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-range="90">3 months</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-range="custom">Custom</button>
+      </div>
+      <div class="field-row" id="custom-range-fields" style="display:none;max-width:360px;margin-bottom:var(--sp-5)">
+        <div class="field"><label for="range-start">Start</label><input type="date" id="range-start"></div>
+        <div class="field"><label for="range-end">End</label><input type="date" id="range-end"></div>
+      </div>
+
+      <div class="grid grid-cols-3" id="insights-grid"></div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts;
+  var range = 7;
+
+  var CHARTS = [
+    { key: 'weight', label: 'Body Weight Trend', unit: ' lb', type: 'line', cadence: 'day' },
+    { key: 'calories', label: 'Calories', unit: ' kcal', type: 'line', cadence: 'day' },
+    { key: 'protein', label: 'Protein', unit: ' g', type: 'line', cadence: 'day' },
+    { key: 'fiber', label: 'Fiber', unit: ' g', type: 'line', cadence: 'day' },
+    { key: 'steps', label: 'Steps', unit: '', type: 'line', cadence: 'day' },
+    { key: 'sleep', label: 'Sleep', unit: ' h', type: 'line', cadence: 'day' },
+    { key: 'workoutFrequency', label: 'Workout Frequency', unit: '/wk', type: 'bar', cadence: 'week' },
+    { key: 'trainingVolume', label: 'Training Volume', unit: ' lb', type: 'bar', cadence: 'week' },
+    { key: 'strength', label: 'Estimated Strength', unit: '', type: 'line', cadence: 'week' },
+    { key: 'habitCompletion', label: 'Habit Completion', unit: '%', type: 'line', cadence: 'week' },
+    { key: 'focusTime', label: 'Focus Time', unit: ' min', type: 'bar', cadence: 'week' },
+    { key: 'tasksCompleted', label: 'Tasks Completed', unit: '', type: 'bar', cadence: 'week' },
+    { key: 'applications', label: 'Job Applications', unit: '', type: 'bar', cadence: 'week' }
+  ];
+
+  function pointsFor(c) {
+    var series = State.data.insights[c.key];
+    if (c.cadence === 'day') {
+      var n = range === 'custom' ? 30 : Math.min(range, series.length);
+      return series.slice(-n);
+    }
+    var weeks = range === 'custom' ? 12 : Math.max(1, Math.round((range === 7 ? 1 : range === 30 ? 4 : 12)));
+    return series.slice(-weeks);
+  }
+
+  function renderGrid() {
+    var host = document.getElementById('insights-grid');
+    host.innerHTML = CHARTS.map(function (c, i) {
+      return '<section class="panel panel-pad" aria-labelledby="chart-h-' + i + '">' +
+        '<div class="panel-head"><div><h2 class="panel-title" id="chart-h-' + i + '" style="font-size:13.5px">' + c.label + '</h2></div></div>' +
+        '<canvas id="chart-' + i + '" style="width:100%;height:110px" role="img" aria-describedby="chart-sum-' + i + '"></canvas>' +
+        '<p class="visually-hidden" id="chart-sum-' + i + '"></p>' +
+        '</section>';
+    }).join('');
+    CHARTS.forEach(function (c, i) {
+      var pts = pointsFor(c);
+      var canvas = document.getElementById('chart-' + i);
+      if (c.type === 'line') Charts.lineChart(canvas, pts, { fill: true, color: '#22d3ee' });
+      else Charts.barChart(canvas, Charts.values(pts), { color: '#38bdf8' });
+      document.getElementById('chart-sum-' + i).textContent = Charts.summary(pts, c.label, c.unit);
+    });
+  }
+
+  document.querySelectorAll('#range-tabs [data-range]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#range-tabs [data-range]').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
+      btn.setAttribute('aria-selected', 'true');
+      var val = btn.getAttribute('data-range');
+      range = val === 'custom' ? 'custom' : parseInt(val, 10);
+      document.getElementById('custom-range-fields').style.display = val === 'custom' ? 'flex' : 'none';
+      renderGrid();
+    });
+  });
+  ['range-start', 'range-end'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderGrid);
+  });
+
+  renderGrid();
+  document.addEventListener('lifeos:state-changed', renderGrid);
+})();
+</script>
+</body>
+</html>

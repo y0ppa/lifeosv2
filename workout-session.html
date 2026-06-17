@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Active Workout — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+<style>
+  .set-row { display: grid; grid-template-columns: 28px 1fr 1fr 1fr 64px; gap: 8px; align-items: center; padding: 8px 0; }
+  .set-row-head { font-size: 10.5px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .set-num { font-family: var(--font-mono); font-size: 13px; color: var(--text-tertiary); }
+  .set-row input { width: 100%; }
+  .set-done-btn { width: 36px; height: 36px; border-radius: var(--r-sm); border: 1.5px solid var(--panel-border-strong); background: transparent; color: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .set-done-btn[aria-pressed="true"] { background: var(--accent-green); border-color: var(--accent-green); color: #03140c; }
+  .rest-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: var(--z-toast); background: var(--panel); border: 1px solid var(--accent-cyan); border-radius: var(--r-full); padding: 8px 18px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-panel); display: none; }
+  .rest-banner.is-active { display: flex; }
+  .timer-display { font-family: var(--font-mono); font-size: 28px; font-weight: 600; letter-spacing: 0.02em; }
+</style>
+</head>
+<body data-page="workout-session">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+
+<div class="rest-banner" id="rest-banner" role="status" aria-live="polite">
+  <span class="mono" id="rest-time">01:30</span>
+  <span style="font-size:12.5px;color:var(--text-secondary)">Rest timer</span>
+  <button type="button" class="btn btn-ghost btn-sm" id="rest-skip-btn">Skip</button>
+</div>
+
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <section class="panel panel-pad" style="margin-bottom:var(--sp-5);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px">
+        <div>
+          <p class="label-tag" id="session-status">Active Protocol</p>
+          <h1 class="page-title" id="session-title" style="margin-top:4px">Upper Body</h1>
+        </div>
+        <div style="text-align:center">
+          <p class="timer-display mono" id="elapsed-timer">00:00</p>
+          <p class="label-tag">Elapsed</p>
+        </div>
+        <div class="hero-actions" style="margin:0">
+          <button type="button" class="btn btn-secondary" id="pause-btn">Pause</button>
+          <button type="button" class="btn btn-primary" id="complete-workout-btn">Complete workout</button>
+        </div>
+      </section>
+
+      <div id="exercise-session-list" class="stack"></div>
+
+      <div class="hero-actions" style="justify-content:flex-start;margin-top:var(--sp-5)">
+        <button type="button" class="btn btn-secondary" id="add-exercise-btn">Add exercise</button>
+        <a class="btn btn-ghost" href="workouts.html">Back to workouts</a>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var workout = State.data.workouts.today;
+  document.getElementById('session-title').textContent = workout.name;
+
+  // ---- elapsed timer ----
+  var seconds = 0, paused = false, tickInterval = setInterval(function () {
+    if (!paused) { seconds++; document.getElementById('elapsed-timer').textContent = fmtClock(seconds); }
+  }, 1000);
+  function fmtClock(s) { var m = Math.floor(s / 60); var sec = s % 60; return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0'); }
+  document.getElementById('pause-btn').addEventListener('click', function (e) {
+    paused = !paused;
+    e.target.textContent = paused ? 'Resume' : 'Pause';
+  });
+
+  // ---- rest timer ----
+  var restInterval = null;
+  function startRest(totalSeconds) {
+    clearInterval(restInterval);
+    var remaining = totalSeconds;
+    var banner = document.getElementById('rest-banner');
+    var timeEl = document.getElementById('rest-time');
+    banner.classList.add('is-active');
+    function tick() {
+      timeEl.textContent = fmtClock(remaining);
+      if (remaining <= 0) { clearInterval(restInterval); banner.classList.remove('is-active'); if (LifeOS.Sound) LifeOS.Sound.play('notification'); return; }
+      remaining--;
+    }
+    tick();
+    restInterval = setInterval(tick, 1000);
+  }
+  document.getElementById('rest-skip-btn').addEventListener('click', function () {
+    clearInterval(restInterval);
+    document.getElementById('rest-banner').classList.remove('is-active');
+  });
+
+  // ---- session sets state (in-memory; planned sets pre-filled from exercise data) ----
+  var session = workout.exercises.map(function (ex) {
+    var sets = [];
+    for (var i = 0; i < ex.sets; i++) sets.push({ weight: ex.weight, reps: ex.reps, rpe: '', done: false });
+    return { exercise: ex, sets: sets, notes: '' };
+  });
+
+  function renderExercise(entry, idx) {
+    var ex = entry.exercise;
+    var rows = entry.sets.map(function (s, si) {
+      return '<div class="set-row" data-exercise="' + idx + '" data-set="' + si + '">' +
+        '<span class="set-num">' + (si + 1) + '</span>' +
+        '<input type="number" inputmode="decimal" aria-label="Weight for set ' + (si + 1) + '" value="' + s.weight + '" data-field="weight">' +
+        '<input type="number" inputmode="numeric" aria-label="Reps for set ' + (si + 1) + '" value="' + s.reps + '" data-field="reps">' +
+        '<input type="number" min="1" max="10" inputmode="numeric" aria-label="RPE for set ' + (si + 1) + '" placeholder="RPE" value="' + s.rpe + '" data-field="rpe">' +
+        '<button type="button" class="set-done-btn" aria-pressed="' + s.done + '" aria-label="Mark set ' + (si + 1) + ' complete">' + ICONS.check + '</button>' +
+        '</div>';
+    }).join('');
+    return '<section class="panel panel-pad" data-exercise-card="' + idx + '">' +
+      '<div class="panel-head"><div><h2 class="panel-title">' + App.escapeHtml(ex.name) + '</h2><p class="panel-sub">Previous: ' + ex.lastWeight + ' ' + ex.unit + ' × ' + ex.lastReps + ' reps</p></div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-add-set="' + idx + '">Add set</button></div>' +
+      '<div class="set-row set-row-head"><span></span><span>Weight (' + ex.unit + ')</span><span>Reps</span><span>RPE</span><span>Done</span></div>' +
+      '<div data-set-rows="' + idx + '">' + rows + '</div>' +
+      '<div class="field" style="margin-top:var(--sp-3)"><label for="notes-' + idx + '">Notes</label><textarea id="notes-' + idx + '" data-notes="' + idx + '" placeholder="Form cues, how it felt…">' + App.escapeHtml(entry.notes) + '</textarea></div>' +
+      '</section>';
+  }
+
+  function renderAll() {
+    document.getElementById('exercise-session-list').innerHTML = session.map(renderExercise).join('');
+  }
+  renderAll();
+
+  document.getElementById('exercise-session-list').addEventListener('click', function (e) {
+    var doneBtn = e.target.closest('.set-done-btn');
+    if (doneBtn) {
+      var row = doneBtn.closest('.set-row');
+      var exIdx = parseInt(row.getAttribute('data-exercise'), 10);
+      var setIdx = parseInt(row.getAttribute('data-set'), 10);
+      var s = session[exIdx].sets[setIdx];
+      s.done = !s.done;
+      doneBtn.setAttribute('aria-pressed', s.done);
+      if (s.done) { startRest(90); if (LifeOS.Sound) LifeOS.Sound.play('success'); }
+      return;
+    }
+    var addSetBtn = e.target.closest('[data-add-set]');
+    if (addSetBtn) {
+      var idx = parseInt(addSetBtn.getAttribute('data-add-set'), 10);
+      var ex = session[idx].exercise;
+      session[idx].sets.push({ weight: ex.weight, reps: ex.reps, rpe: '', done: false });
+      renderAll();
+    }
+  });
+
+  document.getElementById('exercise-session-list').addEventListener('input', function (e) {
+    var input = e.target;
+    var row = input.closest('.set-row');
+    if (row && input.dataset.field) {
+      var exIdx = parseInt(row.getAttribute('data-exercise'), 10);
+      var setIdx = parseInt(row.getAttribute('data-set'), 10);
+      session[exIdx].sets[setIdx][input.dataset.field] = input.value;
+    }
+    if (input.dataset.notes !== undefined) {
+      session[parseInt(input.dataset.notes, 10)].notes = input.value;
+    }
+  });
+
+  document.getElementById('add-exercise-btn').addEventListener('click', function () {
+    var name = window.prompt('Exercise name');
+    if (!name) return;
+    var newEx = { name: name, sets: 3, reps: 10, weight: 0, unit: 'lb', lastWeight: 0, lastReps: 0 };
+    workout.exercises.push(newEx);
+    session.push({ exercise: newEx, sets: [{ weight: 0, reps: 10, rpe: '', done: false }, { weight: 0, reps: 10, rpe: '', done: false }, { weight: 0, reps: 10, rpe: '', done: false }], notes: '' });
+    renderAll();
+    App.showToast('"' + name + '" added to this workout.', 'success');
+  });
+
+  document.getElementById('complete-workout-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Complete workout',
+      body: 'Mark ' + workout.name + ' as complete? This will save your logged sets and update your training history.',
+      confirmLabel: 'Complete workout',
+      onConfirm: function () {
+        var totalSets = 0, volume = 0;
+        session.forEach(function (entry) {
+          var doneSets = entry.sets.filter(function (s) { return s.done; });
+          if (doneSets.length) {
+            var top = doneSets[doneSets.length - 1];
+            entry.exercise.lastWeight = parseFloat(top.weight) || entry.exercise.lastWeight;
+            entry.exercise.lastReps = parseInt(top.reps, 10) || entry.exercise.lastReps;
+          }
+          totalSets += doneSets.length;
+          doneSets.forEach(function (s) { volume += (parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0); });
+        });
+        workout.completed = true;
+        State.data.workouts.history.unshift({ date: new Date().toISOString().slice(0, 10), name: workout.name, durationMin: Math.round(seconds / 60) || 1, volumeLb: Math.round(volume), sets: totalSets });
+        var habit = State.data.habits.filter(function (h) { return /workout/i.test(h.name); })[0];
+        if (habit) habit.completedToday = true;
+        State.save();
+        clearInterval(tickInterval);
+        App.showToast('Workout complete. Nice work!', 'success');
+        if (LifeOS.Sound) LifeOS.Sound.play('success');
+        setTimeout(function () { window.location.href = 'workouts.html'; }, 1100);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

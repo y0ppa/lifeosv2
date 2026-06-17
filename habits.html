@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habits — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="habits">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Habit Systems</h1><p class="page-sub">Daily checklist, streaks, and weekly consistency.</p></div>
+        <button type="button" class="btn btn-primary" id="create-habit-btn">Create habit</button>
+      </div>
+
+      <section class="panel panel-pad" style="margin-bottom:var(--sp-5)">
+        <div class="grid grid-cols-3" id="habit-summary-grid"></div>
+      </section>
+
+      <div class="tabs" id="category-tabs" role="tablist" aria-label="Habit categories" style="margin-bottom:var(--sp-5)"></div>
+
+      <div class="home-grid">
+        <section class="panel panel-pad col-left" aria-labelledby="checklist-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="checklist-heading">Today's Checklist</h2><p class="panel-sub" id="checklist-sub"></p></div></div>
+          <div id="habit-checklist"></div>
+        </section>
+
+        <section class="panel panel-pad col-right" aria-labelledby="grid-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="grid-heading">Weekly Completion Grid</h2><p class="panel-sub">Last 7 days</p></div></div>
+          <div id="weekly-grid-wrap" style="overflow-x:auto"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<div class="overlay" id="modal-habit-detail">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hd-title" id="habit-detail-content"></div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  var activeCategory = 'All';
+
+  function categories() {
+    var set = {};
+    State.data.habits.forEach(function (h) { set[h.category] = true; });
+    return ['All'].concat(Object.keys(set));
+  }
+
+  function renderTabs() {
+    document.getElementById('category-tabs').innerHTML = categories().map(function (c) {
+      return '<button type="button" class="tab-btn" role="tab" aria-selected="' + (c === activeCategory) + '" data-cat="' + c + '">' + c + '</button>';
+    }).join('');
+    document.querySelectorAll('[data-cat]').forEach(function (btn) {
+      btn.addEventListener('click', function () { activeCategory = btn.getAttribute('data-cat'); renderAll(); });
+    });
+  }
+
+  function filteredHabits() {
+    return activeCategory === 'All' ? State.data.habits : State.data.habits.filter(function (h) { return h.category === activeCategory; });
+  }
+
+  function renderSummary() {
+    var habits = State.data.habits;
+    var doneToday = habits.filter(function (h) { return h.completedToday; }).length;
+    var avgStreak = Math.round(habits.reduce(function (a, h) { return a + h.streak; }, 0) / habits.length);
+    var weekPct = Math.round(habits.reduce(function (a, h) { return a + h.week.filter(Boolean).length; }, 0) / (habits.length * 7) * 100);
+    document.getElementById('habit-summary-grid').innerHTML = [
+      { l: 'Completed today', v: doneToday + ' / ' + habits.length },
+      { l: 'Average streak', v: avgStreak + ' days' },
+      { l: 'Weekly completion', v: weekPct + '%' }
+    ].map(function (i) { return '<div style="text-align:center"><p class="metric-value mono" style="font-size:22px">' + i.v + '</p><p class="label-tag" style="margin-top:4px">' + i.l + '</p></div>'; }).join('');
+  }
+
+  function renderChecklist() {
+    var habits = filteredHabits();
+    document.getElementById('checklist-sub').textContent = habits.filter(function (h) { return h.completedToday; }).length + ' of ' + habits.length + ' complete';
+    document.getElementById('habit-checklist').innerHTML = habits.map(function (h) {
+      return '<div class="habit-row" data-done="' + h.completedToday + '">' +
+        '<button type="button" class="habit-check" data-habit-toggle="' + h.id + '" aria-pressed="' + h.completedToday + '" aria-label="Mark ' + App.escapeHtml(h.name) + ' complete">' + ICONS.check + '</button>' +
+        '<button type="button" class="habit-name" style="background:none;border:none;text-align:left;cursor:pointer;color:inherit" data-habit-detail="' + h.id + '">' + App.escapeHtml(h.name) + '<br><span style="font-size:11px;color:var(--text-tertiary);text-decoration:none">' + h.category + (h.paused ? ' · Paused' : '') + '</span></button>' +
+        '<span class="habit-streak">' + h.streak + 'd streak</span>' +
+        '</div>';
+    }).join('') || '<p class="empty-state">No habits in this category.</p>';
+    document.querySelectorAll('[data-habit-detail]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openDetail(btn.getAttribute('data-habit-detail')); });
+    });
+  }
+
+  function renderWeeklyGrid() {
+    var habits = filteredHabits();
+    var head = '<div class="week-grid-head" style="grid-column:1"></div>' + WEEK_LABELS.map(function (l) { return '<div class="week-grid-head">' + l + '</div>'; }).join('');
+    var rows = habits.map(function (h) {
+      return '<div style="font-size:12px;padding-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + App.escapeHtml(h.name) + '</div>' +
+        h.week.map(function (d) { return '<div class="week-cell ' + (d ? 'done' : '') + '"></div>'; }).join('');
+    }).join('');
+    document.getElementById('weekly-grid-wrap').innerHTML = '<div class="week-grid" style="min-width:480px">' + head + rows + '</div>';
+  }
+
+  function openDetail(id) {
+    var h = State.data.habits.filter(function (x) { return x.id === id; })[0];
+    if (!h) return;
+    var moodKey = 'lifeos.mood.' + id + '.' + new Date().toISOString().slice(0, 10);
+    var savedMood = localStorage.getItem(moodKey);
+    var moods = ['Great', 'Good', 'Okay', 'Rough'];
+    document.getElementById('habit-detail-content').innerHTML = '' +
+      '<div class="modal-head"><h2 class="modal-title" id="hd-title">' + App.escapeHtml(h.name) + '</h2><button type="button" class="modal-close" data-modal-close aria-label="Close">' + ICONS.close + '</button></div>' +
+      '<div class="modal-body">' +
+      '<div class="grid grid-cols-3">' +
+      '<div style="text-align:center"><p class="metric-value mono" style="font-size:18px">' + h.streak + '</p><p class="label-tag">Streak</p></div>' +
+      '<div style="text-align:center"><p class="metric-value mono" style="font-size:18px">' + h.week.filter(Boolean).length + '/7</p><p class="label-tag">This week</p></div>' +
+      '<div style="text-align:center"><p class="metric-value mono" style="font-size:18px">' + h.category + '</p><p class="label-tag">Category</p></div>' +
+      '</div>' +
+      '<div class="week-grid" style="margin-top:8px">' + WEEK_LABELS.map(function (l) { return '<div class="week-grid-head">' + l + '</div>'; }).join('') + h.week.map(function (d) { return '<div class="week-cell ' + (d ? 'done' : '') + '"></div>'; }).join('') + '</div>' +
+      '<div class="field"><label>Mood check-in</label><div class="hero-actions" style="justify-content:flex-start;margin-top:6px" id="mood-buttons">' +
+      moods.map(function (m) { return '<button type="button" class="btn ' + (savedMood === m ? 'btn-primary' : 'btn-secondary') + ' btn-sm" data-mood="' + m + '">' + m + '</button>'; }).join('') +
+      '</div></div>' +
+      '<div class="field"><label for="hd-notes">Notes</label><textarea id="hd-notes" placeholder="How did it go today?"></textarea></div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+      '<button type="button" class="btn btn-ghost" id="pause-habit-btn">' + (h.paused ? 'Resume habit' : 'Pause habit') + '</button>' +
+      '<button type="button" class="btn btn-primary" data-modal-close>Done</button>' +
+      '</div>';
+    App.openModal('modal-habit-detail');
+    document.querySelectorAll('#mood-buttons [data-mood]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        localStorage.setItem(moodKey, btn.getAttribute('data-mood'));
+        document.querySelectorAll('#mood-buttons [data-mood]').forEach(function (b) { b.className = 'btn btn-secondary btn-sm'; });
+        btn.className = 'btn btn-primary btn-sm';
+        App.showToast('Mood logged for ' + h.name + '.', 'success');
+      });
+    });
+    document.getElementById('pause-habit-btn').addEventListener('click', function () {
+      h.paused = !h.paused;
+      State.save();
+      App.closeModal('modal-habit-detail');
+      App.showToast(h.paused ? '"' + h.name + '" paused.' : '"' + h.name + '" resumed.', 'info');
+      renderAll();
+    });
+    document.querySelectorAll('#modal-habit-detail [data-modal-close]').forEach(function (b) { b.addEventListener('click', function () { App.closeModal('modal-habit-detail'); }); });
+  }
+
+  document.getElementById('create-habit-btn').addEventListener('click', function () {
+    var name = window.prompt('New habit name');
+    if (!name) return;
+    State.data.habits.push({ id: 'h' + Date.now(), name: name, category: 'Growth', completedToday: false, streak: 0, week: [0, 0, 0, 0, 0, 0, 0], paused: false });
+    State.save();
+    App.showToast('"' + name + '" habit created.', 'success');
+    renderAll();
+  });
+
+  function renderAll() { renderTabs(); renderSummary(); renderChecklist(); renderWeeklyGrid(); }
+  renderAll();
+  document.addEventListener('lifeos:state-changed', renderAll);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="assistant">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title" id="assistant-name-title">ARIA</h1><p class="page-sub">Voice console available from the mic button — type or talk, your choice.</p></div>
+        <a class="btn btn-secondary" href="voice-console.html">Open Voice Console</a>
+      </div>
+
+      <section class="panel panel-pad chat-wrap">
+        <div class="chat-scroll" id="chat-scroll" aria-live="polite"></div>
+        <div class="chat-suggested" id="chat-suggested"></div>
+        <form class="chat-input-row" id="chat-form">
+          <label for="chat-input" class="visually-hidden">Message ARIA</label>
+          <input id="chat-input" type="text" placeholder="Ask ARIA anything about your day…" autocomplete="off">
+          <button type="button" class="icon-btn" id="chat-mic-btn" aria-label="Use voice input"></button>
+          <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+      </section>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  document.getElementById('assistant-name-title').textContent = State.data.profile.assistantName;
+  document.getElementById('chat-mic-btn').innerHTML = ICONS.mic;
+
+  var FACT_PATTERNS = [/how (many|much)/i, /how many steps/i, /what assignments/i, /recent job applications/i, /what did i lift/i, /day look/i, /briefing/i];
+  function isFact(text) { return FACT_PATTERNS.some(function (p) { return p.test(text); }); }
+
+  var scroll = document.getElementById('chat-scroll');
+
+  function bubble(role, html, extraClass) {
+    var div = document.createElement('div');
+    div.className = 'chat-msg ' + (role === 'user' ? 'from-user' : 'from-ai') + (extraClass ? ' ' + extraClass : '');
+    div.innerHTML = '<span class="chat-avatar ' + (role === 'user' ? 'user' : 'ai') + '">' + (role === 'user' ? State.data.profile.initials : ICONS.assistant) + '</span><div>' + html + '</div>';
+    scroll.appendChild(div);
+    scroll.scrollTop = scroll.scrollHeight;
+    return div;
+  }
+
+  function addUserMessage(text) {
+    bubble('user', '<div class="chat-bubble">' + App.escapeHtml(text) + '</div>');
+    State.data.conversation.push({ role: 'user', text: text, time: Date.now() });
+    State.save();
+  }
+
+  function addAssistantMessage(text, opts) {
+    opts = opts || {};
+    var tag = opts.isFact ? '<span class="tag status-info">Recorded fact</span>' : '<span class="tag status-warn">AI suggestion</span>';
+    var source = opts.source ? '<div class="chat-source">' + ICONS.info + '<span>Source: ' + opts.source + '</span></div>' : '';
+    var html = '<div class="chat-bubble">' + App.escapeHtml(text) + '</div><div style="margin-top:6px">' + tag + '</div>' + source;
+    bubble('assistant', html);
+    State.data.conversation.push({ role: 'assistant', text: text, time: Date.now() });
+    State.save();
+  }
+
+  function addConfirmCard(message, onConfirm) {
+    var div = bubble('assistant', '<div class="action-confirm">' +
+      '<p class="action-confirm-title">' + ICONS.warning + ' Confirmation needed</p>' +
+      '<p class="action-confirm-body">' + App.escapeHtml(message) + '</p>' +
+      '<div class="action-confirm-buttons">' +
+      '<button type="button" class="btn btn-primary btn-sm" data-act="confirm">Confirm</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-act="edit">Edit</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-act="cancel">Cancel</button>' +
+      '</div></div>');
+    div.querySelector('[data-act="confirm"]').addEventListener('click', function () {
+      div.querySelector('.action-confirm').outerHTML = '<p style="font-size:12.5px;color:var(--text-tertiary)">Confirmed.</p>';
+      onConfirm();
+    });
+    div.querySelector('[data-act="cancel"]').addEventListener('click', function () {
+      div.querySelector('.action-confirm').outerHTML = '<p style="font-size:12.5px;color:var(--text-tertiary)">Cancelled.</p>';
+    });
+    div.querySelector('[data-act="edit"]').addEventListener('click', function () {
+      document.getElementById('chat-input').focus();
+    });
+  }
+
+  function sourceFor(text) {
+    if (/calorie|protein|macro|meal/i.test(text)) return 'Nutrition log, Today';
+    if (/step|sleep/i.test(text)) return 'Health integration';
+    if (/lift|workout|weight \d/i.test(text)) return 'Training history';
+    if (/assignment|deadline|task/i.test(text)) return 'Work Queue';
+    if (/application/i.test(text)) return 'Application Pipeline';
+    if (/weight trend|progress/i.test(text)) return 'Weight log, last 30 days';
+    return null;
+  }
+
+  function handleSend(text) {
+    if (!text.trim()) return;
+    addUserMessage(text);
+    var result = LifeOS.Commands.process(text);
+    if (result.silent) return;
+    if (result.needsConfirm) {
+      addConfirmCard(result.reply, function () {
+        var msg = result.onConfirm();
+        addAssistantMessage(msg, { isFact: true, source: sourceFor(text) });
+        LifeOS.Voice.speak(msg);
+      });
+      return;
+    }
+    if (result.action) result.action();
+    addAssistantMessage(result.reply, { isFact: isFact(text), source: sourceFor(text) });
+    LifeOS.Voice.speak(result.reply);
+    if (result.navigate) setTimeout(function () { window.location.href = result.navigate; }, 1000);
+  }
+
+  document.getElementById('chat-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = document.getElementById('chat-input');
+    handleSend(input.value);
+    input.value = '';
+  });
+
+  document.getElementById('chat-mic-btn').addEventListener('click', function () {
+    if (!LifeOS.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Type your message instead.', 'warn'); return; }
+    LifeOS.Voice.start();
+  });
+  LifeOS.Voice.on('transcript', function (t) {
+    document.getElementById('chat-input').value = t.text;
+    if (t.isFinal) { handleSend(t.text); document.getElementById('chat-input').value = ''; }
+  });
+
+  var PROMPTS = ['Plan my day', 'Analyze my weight trend', 'Suggest a meal', 'Review this week’s workouts', 'Reschedule my workout', 'Show upcoming deadlines', 'Review my applications', 'Build a grocery list'];
+  document.getElementById('chat-suggested').innerHTML = PROMPTS.map(function (p) { return '<button type="button" class="suggested-chip" data-prompt="' + p + '">' + p + '</button>'; }).join('');
+  document.querySelectorAll('[data-prompt]').forEach(function (btn) { btn.addEventListener('click', function () { handleSend(btn.getAttribute('data-prompt')); }); });
+
+  // ---- restore conversation history, or greet ----
+  if (State.data.conversation.length) {
+    State.data.conversation.forEach(function (m) {
+      if (m.role === 'user') bubble('user', '<div class="chat-bubble">' + App.escapeHtml(m.text) + '</div>');
+      else bubble('assistant', '<div class="chat-bubble">' + App.escapeHtml(m.text) + '</div>');
+    });
+  } else {
+    addAssistantMessage(LifeOS.Commands.briefingText(), { isFact: true, source: 'Daily briefing' });
+  }
+})();
+</script>
+</body>
+</html>

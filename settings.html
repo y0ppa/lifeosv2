@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="settings">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content" style="max-width:880px">
+      <div class="page-head"><div><h1 class="page-title">Settings</h1><p class="page-sub">Profile, goals, assistant, notifications, and privacy.</p></div></div>
+
+      <div class="stack">
+        <section class="panel panel-pad" aria-labelledby="profile-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="profile-heading">Profile</h2></div></div>
+          <form id="form-profile">
+            <div class="field-row">
+              <div class="field"><label for="set-name">Name</label><input id="set-name" type="text"></div>
+              <div class="field"><label for="set-email">Email</label><input id="set-email" type="email"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Save profile</button>
+          </form>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="goals-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="goals-heading">Fitness &amp; Nutrition Goals</h2><p class="panel-sub">Calorie and macro targets</p></div></div>
+          <form id="form-goals">
+            <div class="field-row">
+              <div class="field"><label for="goal-weight">Weight goal (lb)</label><input id="goal-weight" type="number"></div>
+              <div class="field"><label for="goal-calories">Calorie target</label><input id="goal-calories" type="number"></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label for="goal-protein">Protein target (g)</label><input id="goal-protein" type="number"></div>
+              <div class="field"><label for="goal-carbs">Carbs target (g)</label><input id="goal-carbs" type="number"></div>
+              <div class="field"><label for="goal-fat">Fat target (g)</label><input id="goal-fat" type="number"></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label for="goal-fiber">Fiber target (g)</label><input id="goal-fiber" type="number"></div>
+              <div class="field"><label for="goal-water">Water target (oz)</label><input id="goal-water" type="number"></div>
+              <div class="field"><label for="goal-steps">Steps target</label><input id="goal-steps" type="number"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Save goals</button>
+          </form>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="schedule-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="schedule-heading">Training Schedule</h2><p class="panel-sub">Days you plan to train</p></div></div>
+          <div class="grid grid-cols-6" id="schedule-days" style="grid-template-columns:repeat(7,1fr)"></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="assistant-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="assistant-heading">Assistant &amp; Voice</h2><p class="panel-sub">Customize ARIA</p></div></div>
+          <div class="field"><label for="assistant-name">Assistant name</label><input id="assistant-name" type="text"></div>
+          <div class="privacy-row"><div><p class="privacy-row-text">Voice enabled</p><p class="privacy-row-desc">Turn off to disable microphone and speech entirely.</p></div><label class="switch"><input type="checkbox" id="voice-enabled"><span class="switch-track"></span><span class="switch-thumb"></span></label></div>
+          <div class="privacy-row"><div><p class="privacy-row-text">Wake phrase ("Hey ARIA")</p><p class="privacy-row-desc">Requires the page to stay open and microphone permission to remain active.</p></div><label class="switch"><input type="checkbox" id="wake-phrase"><span class="switch-track"></span><span class="switch-thumb"></span></label></div>
+          <div class="field-row" style="margin-top:var(--sp-3)">
+            <div class="field"><label for="voice-rate">Speech speed</label><input id="voice-rate" type="range" min="0.7" max="1.4" step="0.1"></div>
+            <div class="field"><label for="voice-volume">Speech volume</label><input id="voice-volume" type="range" min="0" max="1" step="0.1"></div>
+          </div>
+          <div class="field"><label for="voice-shortcut-display">Keyboard shortcut to open Voice Console</label><input id="voice-shortcut-display" type="text" readonly value="Alt + Shift + A"></div>
+          <div class="privacy-row"><div><p class="privacy-row-text">Interface sounds</p><p class="privacy-row-desc">Synthesized tones for activation, confirmation, and alerts.</p></div><label class="switch"><input type="checkbox" id="sound-enabled"><span class="switch-track"></span><span class="switch-thumb"></span></label></div>
+          <div class="field"><label for="sound-volume">Sound volume</label><input id="sound-volume" type="range" min="0" max="1" step="0.1"></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="privacy-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="privacy-heading">Privacy &amp; Voice History</h2></div></div>
+          <p class="mic-permission-note" style="margin-bottom:var(--sp-3)"></p>
+          <div class="privacy-row"><div><p class="privacy-row-text">Conversation history</p><p class="privacy-row-desc" id="conversation-count"></p></div><button type="button" class="btn btn-danger btn-sm" id="clear-conversation-btn">Delete conversation</button></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="habits-pref-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="habits-pref-heading">Habit Preferences</h2></div></div>
+          <div class="field"><label for="bedtime-pref">Preferred bedtime</label><input id="bedtime-pref" type="time" value="23:00"></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="notif-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="notif-heading">Notification Preferences</h2></div></div>
+          <div id="notif-list"></div>
+          <hr class="divider">
+          <div class="privacy-row"><div><p class="privacy-row-text">Quiet hours</p><p class="privacy-row-desc">Pause non-urgent notifications</p></div><label class="switch"><input type="checkbox" id="quiet-enabled"><span class="switch-track"></span><span class="switch-thumb"></span></label></div>
+          <div class="field-row">
+            <div class="field"><label for="quiet-start">Start</label><input id="quiet-start" type="time"></div>
+            <div class="field"><label for="quiet-end">End</label><input id="quiet-end" type="time"></div>
+          </div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="appearance-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="appearance-heading">Appearance &amp; Units</h2></div></div>
+          <div class="privacy-row"><div><p class="privacy-row-text">Dark mode</p><p class="privacy-row-desc">Switch between dark and light appearance.</p></div><label class="switch"><input type="checkbox" id="dark-mode-toggle"><span class="switch-track"></span><span class="switch-thumb"></span></label></div>
+          <div class="field"><label for="units-select">Units</label><select id="units-select"><option value="imperial">Imperial (lb, oz, mi)</option><option value="metric">Metric (kg, mL, km)</option></select></div>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="connections-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="connections-heading">Connected Services</h2></div><a class="panel-link" href="integrations.html">Manage connections</a></div>
+          <p style="font-size:13px;color:var(--text-secondary)" id="connections-summary"></p>
+        </section>
+
+        <section class="panel panel-pad" aria-labelledby="data-heading">
+          <div class="panel-head"><div><h2 class="panel-title" id="data-heading">Data &amp; Account</h2></div></div>
+          <div class="hero-actions" style="justify-content:flex-start">
+            <button type="button" class="btn btn-secondary" id="export-data-btn">Export my data</button>
+            <button type="button" class="btn btn-ghost" id="reset-data-btn">Reset sample data</button>
+            <button type="button" class="btn btn-danger" id="delete-account-btn">Delete account</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  document.getElementById('privacy-heading').closest('section').querySelector('.mic-permission-note').innerHTML =
+    ICONS.lock + '<span>Voice audio is processed locally by your browser\'s speech engine and is never uploaded to a server. The microphone only activates while listening is on, and a visible indicator shows whenever it\'s active.</span>';
+
+  var d = State.data;
+
+  function fillForm() {
+    document.getElementById('set-name').value = d.profile.name;
+    document.getElementById('set-email').value = d.profile.email;
+    document.getElementById('goal-weight').value = d.goals.weightGoalLb;
+    document.getElementById('goal-calories').value = d.goals.calories;
+    document.getElementById('goal-protein').value = d.goals.protein;
+    document.getElementById('goal-carbs').value = d.goals.carbs;
+    document.getElementById('goal-fat').value = d.goals.fat;
+    document.getElementById('goal-fiber').value = d.goals.fiber;
+    document.getElementById('goal-water').value = d.goals.waterOz;
+    document.getElementById('goal-steps').value = d.goals.steps;
+    document.getElementById('assistant-name').value = d.profile.assistantName;
+    document.getElementById('voice-enabled').checked = d.settings.voice.enabled;
+    document.getElementById('wake-phrase').checked = d.settings.voice.wakePhrase;
+    document.getElementById('voice-rate').value = d.settings.voice.rate;
+    document.getElementById('voice-volume').value = d.settings.voice.volume;
+    document.getElementById('sound-enabled').checked = d.settings.voice.soundEnabled;
+    document.getElementById('sound-volume').value = d.settings.voice.soundVolume;
+    document.getElementById('quiet-enabled').checked = d.settings.quietHours.enabled;
+    document.getElementById('quiet-start').value = d.settings.quietHours.start;
+    document.getElementById('quiet-end').value = d.settings.quietHours.end;
+    document.getElementById('dark-mode-toggle').checked = d.settings.theme !== 'light';
+    document.getElementById('units-select').value = d.settings.units;
+    document.getElementById('conversation-count').textContent = d.conversation.length + ' messages stored locally';
+    document.getElementById('connections-summary').textContent = d.integrations.filter(function (i) { return i.connected; }).length + ' of ' + d.integrations.length + ' services connected.';
+  }
+  fillForm();
+
+  document.getElementById('schedule-days').innerHTML = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (day) {
+    var on = d.settings.schedule.trainingDays.indexOf(day) !== -1;
+    return '<button type="button" class="btn ' + (on ? 'btn-primary' : 'btn-secondary') + ' btn-sm" data-day="' + day + '">' + day + '</button>';
+  }).join('');
+  document.querySelectorAll('[data-day]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var day = btn.getAttribute('data-day');
+      var days = d.settings.schedule.trainingDays;
+      var idx = days.indexOf(day);
+      if (idx === -1) days.push(day); else days.splice(idx, 1);
+      State.save();
+      btn.className = 'btn ' + (idx === -1 ? 'btn-primary' : 'btn-secondary') + ' btn-sm';
+      App.showToast('Training schedule updated.', 'success');
+    });
+  });
+
+  document.getElementById('notif-list').innerHTML = Object.keys(d.settings.notifications).map(function (k) {
+    var label = k.charAt(0).toUpperCase() + k.slice(1);
+    return '<div class="privacy-row"><p class="privacy-row-text">' + label + '</p><label class="switch"><input type="checkbox" data-notif="' + k + '" ' + (d.settings.notifications[k] ? 'checked' : '') + '><span class="switch-track"></span><span class="switch-thumb"></span></label></div>';
+  }).join('');
+  document.querySelectorAll('[data-notif]').forEach(function (cb) {
+    cb.addEventListener('change', function () { d.settings.notifications[cb.getAttribute('data-notif')] = cb.checked; State.save(); });
+  });
+
+  document.getElementById('form-profile').addEventListener('submit', function (e) {
+    e.preventDefault();
+    d.profile.name = document.getElementById('set-name').value;
+    d.profile.email = document.getElementById('set-email').value;
+    d.profile.initials = d.profile.name.split(' ').map(function (n) { return n[0]; }).join('').slice(0, 2).toUpperCase() || 'U';
+    State.save();
+    App.showToast('Profile saved.', 'success');
+  });
+
+  document.getElementById('form-goals').addEventListener('submit', function (e) {
+    e.preventDefault();
+    App.confirmAction({
+      title: 'Update goals',
+      body: 'Save these new calorie, macro, and weight targets? Your daily progress views will recalculate against the new goals.',
+      confirmLabel: 'Save goals',
+      onConfirm: function () {
+        d.goals.weightGoalLb = parseFloat(document.getElementById('goal-weight').value) || d.goals.weightGoalLb;
+        d.weight.goal = d.goals.weightGoalLb;
+        d.goals.calories = parseInt(document.getElementById('goal-calories').value, 10) || d.goals.calories;
+        d.goals.protein = parseInt(document.getElementById('goal-protein').value, 10) || d.goals.protein;
+        d.goals.carbs = parseInt(document.getElementById('goal-carbs').value, 10) || d.goals.carbs;
+        d.goals.fat = parseInt(document.getElementById('goal-fat').value, 10) || d.goals.fat;
+        d.goals.fiber = parseInt(document.getElementById('goal-fiber').value, 10) || d.goals.fiber;
+        d.goals.waterOz = parseInt(document.getElementById('goal-water').value, 10) || d.goals.waterOz;
+        d.goals.steps = parseInt(document.getElementById('goal-steps').value, 10) || d.goals.steps;
+        d.today.calories.target = d.goals.calories;
+        d.today.protein.target = d.goals.protein;
+        d.today.carbs.target = d.goals.carbs;
+        d.today.fat.target = d.goals.fat;
+        d.today.fiber.target = d.goals.fiber;
+        d.today.waterOz.target = d.goals.waterOz;
+        d.today.steps.target = d.goals.steps;
+        State.save();
+        App.showToast('Goals updated.', 'success');
+      }
+    });
+  });
+
+  document.getElementById('assistant-name').addEventListener('change', function (e) {
+    d.profile.assistantName = e.target.value || 'ARIA';
+    State.save();
+    App.showToast('Assistant renamed to "' + d.profile.assistantName + '".', 'success');
+  });
+  document.getElementById('voice-enabled').addEventListener('change', function (e) { d.settings.voice.enabled = e.target.checked; State.save(); });
+  document.getElementById('wake-phrase').addEventListener('change', function (e) { d.settings.voice.wakePhrase = e.target.checked; State.save(); });
+  document.getElementById('voice-rate').addEventListener('change', function (e) { d.settings.voice.rate = parseFloat(e.target.value); State.save(); });
+  document.getElementById('voice-volume').addEventListener('change', function (e) { d.settings.voice.volume = parseFloat(e.target.value); State.save(); });
+  document.getElementById('sound-enabled').addEventListener('change', function (e) { d.settings.voice.soundEnabled = e.target.checked; State.save(); if (e.target.checked && LifeOS.Sound) LifeOS.Sound.play('activate'); });
+  document.getElementById('sound-volume').addEventListener('change', function (e) { d.settings.voice.soundVolume = parseFloat(e.target.value); State.save(); });
+  document.getElementById('quiet-enabled').addEventListener('change', function (e) { d.settings.quietHours.enabled = e.target.checked; State.save(); });
+  document.getElementById('quiet-start').addEventListener('change', function (e) { d.settings.quietHours.start = e.target.value; State.save(); });
+  document.getElementById('quiet-end').addEventListener('change', function (e) { d.settings.quietHours.end = e.target.value; State.save(); });
+  document.getElementById('units-select').addEventListener('change', function (e) { d.settings.units = e.target.value; State.save(); App.showToast('Units updated.', 'success'); });
+  document.getElementById('dark-mode-toggle').addEventListener('change', function (e) {
+    d.settings.theme = e.target.checked ? 'dark' : 'light';
+    State.save();
+    document.documentElement.setAttribute('data-theme', d.settings.theme);
+  });
+
+  document.getElementById('clear-conversation-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Delete conversation history',
+      body: 'Permanently delete all stored assistant conversation history?',
+      confirmLabel: 'Delete history',
+      danger: true,
+      onConfirm: function () { d.conversation = []; State.save(); fillForm(); App.showToast('Conversation history deleted.', 'success'); }
+    });
+  });
+
+  document.getElementById('export-data-btn').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'lifeos-data-export.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    App.showToast('Data export downloaded.', 'success');
+  });
+
+  document.getElementById('reset-data-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Reset sample data',
+      body: 'Restore all sample data to its original demo state? Your edits will be lost.',
+      confirmLabel: 'Reset data',
+      danger: true,
+      onConfirm: function () { State.reset(); App.showToast('Sample data reset.', 'success'); setTimeout(function () { window.location.reload(); }, 700); }
+    });
+  });
+
+  document.getElementById('delete-account-btn').addEventListener('click', function () {
+    App.confirmAction({
+      title: 'Delete account',
+      body: 'This permanently erases all locally stored LifeOS data on this device, including goals, logs, and conversation history. This cannot be undone.',
+      confirmLabel: 'Delete account',
+      danger: true,
+      onConfirm: function () {
+        State.reset();
+        App.showToast('Account data deleted.', 'success');
+        setTimeout(function () { window.location.href = 'index.html'; }, 900);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

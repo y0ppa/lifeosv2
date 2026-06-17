@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Console — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="voice-console">
+<a class="skip-link" href="#vc-main">Skip to main content</a>
+<div id="global-modals-root"></div>
+
+<div class="voice-console" id="vc-main">
+  <div class="voice-console-top">
+    <a class="btn btn-ghost btn-sm" href="index.html" aria-label="Close Voice Console">Close</a>
+    <span class="voice-console-clock mono" id="vc-clock"></span>
+    <button type="button" class="icon-btn" id="vc-mute-btn" aria-label="Mute assistant voice"></button>
+  </div>
+
+  <div class="voice-console-main">
+    <div class="orb-wrap" style="--orb-size:240px">
+      <canvas id="vc-orb" aria-hidden="true"></canvas>
+      <button type="button" class="orb-mic-btn" id="vc-mic-btn" data-state="idle" aria-label="Start or stop listening" style="width:72px;height:72px"></button>
+    </div>
+    <div class="orb-status-row"><span class="orb-state-label" id="vc-state-label">ARIA — Idle</span></div>
+    <p class="orb-transcript" id="vc-transcript" aria-live="polite">Say "Hey ARIA" or tap the orb to begin.</p>
+    <p class="mic-permission-note" id="vc-permission-note"></p>
+
+    <div id="vc-confirm-slot"></div>
+
+    <div class="voice-console-controls">
+      <button type="button" class="btn btn-secondary btn-sm" id="vc-stop-btn">Stop speaking</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="vc-mic-disable-btn">Disable microphone</button>
+      <label class="field" style="margin:0;display:flex;flex-direction:row;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--text-tertiary)">Voice</span>
+        <select id="vc-voice-select" style="width:auto"></select>
+      </label>
+    </div>
+
+    <form class="voice-fallback-input" id="vc-text-form">
+      <label for="vc-text-input" class="visually-hidden">Type a command</label>
+      <input id="vc-text-input" type="text" placeholder="Type a command instead…">
+      <button type="submit" class="btn btn-primary">Send</button>
+    </form>
+
+    <div class="voice-console-stats" id="vc-stats"></div>
+
+    <div class="voice-console-recent">
+      <p class="label-tag" style="margin-bottom:8px">Recent commands</p>
+      <div id="vc-recent-list"></div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  document.querySelector('.voice-console-top a').innerHTML = ICONS.close + ' Close';
+  document.getElementById('vc-mute-btn').innerHTML = ICONS.volume;
+  document.getElementById('vc-mic-btn').innerHTML = ICONS.mic;
+
+  function tickClock() {
+    document.getElementById('vc-clock').textContent = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  }
+  tickClock(); setInterval(tickClock, 15000);
+
+  function renderStats() {
+    var d = State.data.today;
+    var stats = [
+      { l: 'Calories left', v: Math.max(0, d.calories.target - d.calories.consumed) },
+      { l: 'Protein left', v: Math.max(0, d.protein.target - d.protein.consumed) + 'g' },
+      { l: 'Steps', v: d.steps.count.toLocaleString() },
+      { l: 'Sleep', v: d.sleep.hours + 'h ' + d.sleep.minutes + 'm' }
+    ];
+    document.getElementById('vc-stats').innerHTML = stats.map(function (s) {
+      return '<div class="vc-stat"><p class="vc-stat-val mono">' + s.v + '</p><p class="vc-stat-label">' + s.l + '</p></div>';
+    }).join('');
+  }
+  renderStats();
+
+  var recent = [];
+  function renderRecent() {
+    document.getElementById('vc-recent-list').innerHTML = recent.length ? recent.slice(-6).reverse().map(function (r) {
+      return '<div class="recent-cmd-row"><span class="who">' + (r.role === 'user' ? 'You' : State.data.profile.assistantName) + '</span><span>' + App.escapeHtml(r.text) + '</span></div>';
+    }).join('') : '<p style="font-size:12.5px;color:var(--text-tertiary)">No commands yet this session.</p>';
+  }
+  renderRecent();
+
+  // ---- permission / support messaging ----
+  var note = document.getElementById('vc-permission-note');
+  if (!LifeOS.Voice.isRecognitionSupported) {
+    note.innerHTML = ICONS.info + '<span>Speech recognition isn’t available in this browser. Use the text field below — everything else still works.</span>';
+  } else {
+    note.innerHTML = ICONS.lock + '<span>Microphone audio is processed locally by your browser’s speech engine and is never uploaded. The mic only activates while listening is on.</span>';
+  }
+
+  // ---- orb + voice wiring ----
+  var orb = LifeOS.createOrb(document.getElementById('vc-orb'));
+  LifeOS.Voice.setOrb(orb);
+  var micBtn = document.getElementById('vc-mic-btn');
+  var stateLabel = document.getElementById('vc-state-label');
+  var transcriptEl = document.getElementById('vc-transcript');
+  var micDisabled = false;
+
+  LifeOS.Voice.on('state', function (s) {
+    micBtn.setAttribute('data-state', s);
+    stateLabel.textContent = State.data.profile.assistantName + ' — ' + s.charAt(0).toUpperCase() + s.slice(1);
+  });
+  LifeOS.Voice.on('transcript', function (t) {
+    transcriptEl.textContent = t.text;
+    transcriptEl.classList.toggle('is-final', t.isFinal);
+    if (t.isFinal) { recent.push({ role: 'user', text: t.text }); renderRecent(); runCommand(t.text); }
+  });
+  LifeOS.Voice.on('error', function (err) {
+    if (err === 'unsupported') App.showToast('Voice recognition isn’t supported in this browser.', 'warn');
+    else App.showToast('Microphone permission was denied.', 'warn');
+  });
+
+  micBtn.addEventListener('click', function () {
+    if (micDisabled) { App.showToast('Microphone is disabled. Enable it to use voice input.', 'warn'); return; }
+    if (LifeOS.Voice.getState() === 'listening') LifeOS.Voice.stop();
+    else if (!LifeOS.Voice.isRecognitionSupported) App.showToast('Use the text field below instead.', 'info');
+    else LifeOS.Voice.start();
+  });
+
+  document.getElementById('vc-stop-btn').addEventListener('click', function () { LifeOS.Voice.stopSpeaking(); });
+  document.getElementById('vc-mic-disable-btn').addEventListener('click', function (e) {
+    micDisabled = !micDisabled;
+    if (micDisabled) { LifeOS.Voice.stop(); }
+    e.target.textContent = micDisabled ? 'Enable microphone' : 'Disable microphone';
+    App.showToast(micDisabled ? 'Microphone disabled.' : 'Microphone enabled.', 'info');
+  });
+  document.getElementById('vc-mute-btn').addEventListener('click', function () {
+    var muted = !LifeOS.Voice.isMuted();
+    LifeOS.Voice.setMuted(muted);
+    this.style.color = muted ? 'var(--accent-amber)' : '';
+    App.showToast(muted ? 'Assistant voice muted.' : 'Assistant voice unmuted.', 'info');
+  });
+
+  // ---- voice selection ----
+  function populateVoices() {
+    var voices = LifeOS.Voice.getVoices();
+    var sel = document.getElementById('vc-voice-select');
+    if (!voices.length) { sel.innerHTML = '<option>System default</option>'; return; }
+    sel.innerHTML = voices.map(function (v) { return '<option value="' + v.name + '">' + v.name + '</option>'; }).join('');
+    sel.value = State.data.settings.voice.voiceName || voices[0].name;
+  }
+  setTimeout(populateVoices, 300);
+  document.getElementById('vc-voice-select').addEventListener('change', function (e) {
+    State.data.settings.voice.voiceName = e.target.value;
+    State.save();
+  });
+
+  // ---- text fallback ----
+  document.getElementById('vc-text-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = document.getElementById('vc-text-input');
+    var text = input.value.trim();
+    if (!text) return;
+    transcriptEl.textContent = text;
+    transcriptEl.classList.add('is-final');
+    recent.push({ role: 'user', text: text }); renderRecent();
+    runCommand(text);
+    input.value = '';
+  });
+
+  function runCommand(text) {
+    var result = LifeOS.Commands.process(text);
+    if (result.silent) return;
+    if (result.needsConfirm) {
+      LifeOS.Voice.setState('confirm');
+      document.getElementById('vc-confirm-slot').innerHTML = '<div class="action-confirm">' +
+        '<p class="action-confirm-title">' + ICONS.warning + ' Confirmation needed</p>' +
+        '<p class="action-confirm-body">' + App.escapeHtml(result.reply) + '</p>' +
+        '<div class="action-confirm-buttons">' +
+        '<button type="button" class="btn btn-primary btn-sm" id="vc-confirm-yes">Confirm</button>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="vc-confirm-edit">Edit</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" id="vc-confirm-no">Cancel</button>' +
+        '</div></div>';
+      document.getElementById('vc-confirm-yes').addEventListener('click', function () {
+        var msg = result.onConfirm();
+        document.getElementById('vc-confirm-slot').innerHTML = '';
+        recent.push({ role: 'assistant', text: msg }); renderRecent();
+        LifeOS.Voice.speak(msg);
+        renderStats();
+      });
+      document.getElementById('vc-confirm-no').addEventListener('click', function () {
+        document.getElementById('vc-confirm-slot').innerHTML = '';
+        LifeOS.Voice.setState('idle');
+      });
+      document.getElementById('vc-confirm-edit').addEventListener('click', function () {
+        document.getElementById('vc-confirm-slot').innerHTML = '';
+        document.getElementById('vc-text-input').focus();
+        LifeOS.Voice.setState('idle');
+      });
+      return;
+    }
+    if (result.action) result.action();
+    if (result.reply) {
+      recent.push({ role: 'assistant', text: result.reply }); renderRecent();
+      LifeOS.Voice.speak(result.reply);
+    }
+    renderStats();
+    if (result.navigate) setTimeout(function () { window.location.href = result.navigate; }, 1000);
+  }
+
+  document.addEventListener('lifeos:state-changed', renderStats);
+})();
+</script>
+</body>
+</html>

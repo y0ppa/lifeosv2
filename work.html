@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Queue — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="work">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Work Queue</h1><p class="page-sub">Tasks, school assignments, projects, and focus time.</p></div>
+        <div class="hero-actions" style="margin:0">
+          <button type="button" class="btn btn-secondary" id="add-project-btn">Add project</button>
+          <button type="button" class="btn btn-primary" id="add-task-btn">Add task</button>
+        </div>
+      </div>
+
+      <div class="tabs" id="view-tabs" role="tablist" aria-label="Work views" style="margin-bottom:var(--sp-4)">
+        <button type="button" class="tab-btn" role="tab" aria-selected="true" data-view="today">Today</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-view="upcoming">Upcoming</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-view="assignments">Assignments</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-view="projects">Projects</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-view="completed">Completed</button>
+      </div>
+
+      <div class="tabs" id="priority-tabs" role="tablist" aria-label="Priority filter" style="margin-bottom:var(--sp-5)">
+        <button type="button" class="tab-btn" role="tab" aria-selected="true" data-priority="all">All priorities</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-priority="high">High</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-priority="med">Medium</button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-priority="low">Low</button>
+      </div>
+
+      <div class="home-grid">
+        <div class="stack col-left">
+          <section class="panel panel-pad" aria-labelledby="task-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="task-heading">Task List</h2><p class="panel-sub" id="task-sub"></p></div></div>
+            <ul id="work-task-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="calendar-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="calendar-heading">Calendar Events</h2></div></div>
+            <ul id="work-event-list"></ul>
+          </section>
+        </div>
+
+        <div class="stack col-right">
+          <section class="panel panel-pad" aria-labelledby="focus-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="focus-heading">Focus Timer</h2><p class="panel-sub">Deep work session</p></div></div>
+            <div style="text-align:center;padding:var(--sp-4) 0">
+              <p class="timer-display mono" id="focus-display" style="font-size:36px;font-weight:600">25:00</p>
+              <div class="field" style="max-width:200px;margin:var(--sp-3) auto 0">
+                <label for="focus-minutes" class="visually-hidden">Session length in minutes</label>
+                <input type="number" id="focus-minutes" min="5" max="120" value="25" step="5">
+              </div>
+              <div class="hero-actions" style="margin-top:var(--sp-4)">
+                <button type="button" class="btn btn-primary" id="focus-start-btn">Start focus session</button>
+                <button type="button" class="btn btn-ghost" id="focus-reset-btn">Reset</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="time-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="time-heading">Time Tracking</h2><p class="panel-sub" id="time-sub"></p></div></div>
+            <canvas id="focus-chart" style="width:100%;height:90px" role="img" aria-describedby="focus-summary"></canvas>
+            <p class="visually-hidden" id="focus-summary"></p>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="completed-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="completed-heading">Completed Work</h2></div></div>
+            <ul id="completed-list"></ul>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts;
+  var view = 'today', priority = 'all';
+
+  function tasksForView() {
+    var tasks = State.data.work.tasks;
+    if (view === 'completed') return tasks.filter(function (t) { return t.completed; });
+    tasks = tasks.filter(function (t) { return !t.completed; });
+    if (view === 'assignments') tasks = tasks.filter(function (t) { return t.type === 'assignment'; });
+    if (view === 'projects') tasks = tasks.filter(function (t) { return t.type === 'project'; });
+    if (view === 'today') tasks = tasks.filter(function (t) { return /today/i.test(t.due); });
+    if (priority !== 'all') tasks = tasks.filter(function (t) { return t.priority === priority; });
+    return tasks;
+  }
+
+  function renderTabs() {
+    document.querySelectorAll('#view-tabs [data-view]').forEach(function (btn) {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-view') === view);
+      btn.addEventListener('click', function () { view = btn.getAttribute('data-view'); renderAll(); });
+    });
+    document.querySelectorAll('#priority-tabs [data-priority]').forEach(function (btn) {
+      btn.setAttribute('aria-selected', btn.getAttribute('data-priority') === priority);
+      btn.addEventListener('click', function () { priority = btn.getAttribute('data-priority'); renderAll(); });
+    });
+  }
+
+  function renderTasks() {
+    var tasks = tasksForView();
+    document.getElementById('task-sub').textContent = tasks.length + ' item' + (tasks.length === 1 ? '' : 's');
+    document.getElementById('work-task-list').innerHTML = tasks.length ? tasks.map(function (t) {
+      return '<li class="list-row">' +
+        '<button type="button" class="habit-check" data-task-toggle="' + t.id + '" aria-pressed="' + t.completed + '" aria-label="Mark ' + App.escapeHtml(t.title) + ' complete">' + App.ICONS.check + '</button>' +
+        '<span class="priority-dot priority-' + t.priority + '"></span>' +
+        '<span style="flex:1;font-size:13.5px;' + (t.completed ? 'color:var(--text-tertiary);text-decoration:line-through' : '') + '">' + App.escapeHtml(t.title) + (t.course ? ' <span class="tag status-info" style="margin-left:6px">' + t.course + '</span>' : '') + '</span>' +
+        '<span class="mono" style="font-size:11.5px;color:var(--text-tertiary)">' + App.escapeHtml(t.due) + '</span></li>';
+    }).join('') : '<li class="empty-state"><p>Nothing here. Enjoy the clear queue.</p></li>';
+  }
+
+  function renderEvents() {
+    document.getElementById('work-event-list').innerHTML = State.data.work.events.map(function (ev) {
+      return '<li class="list-row"><span class="mono" style="width:50px;flex-shrink:0;font-size:12px;color:var(--text-tertiary)">' + ev.time + '</span><span style="flex:1;font-size:13.5px">' + App.escapeHtml(ev.title) + '</span><span class="tag status-neutral">' + ev.type + '</span></li>';
+    }).join('');
+  }
+
+  function renderCompleted() {
+    var done = State.data.work.tasks.filter(function (t) { return t.completed; });
+    document.getElementById('completed-list').innerHTML = done.length ? done.map(function (t) {
+      return '<li class="list-row"><span style="flex:1;font-size:13px;color:var(--text-tertiary);text-decoration:line-through">' + App.escapeHtml(t.title) + '</span></li>';
+    }).join('') : '<li class="empty-state"><p>No completed items yet.</p></li>';
+  }
+
+  function renderTimeTracking() {
+    document.getElementById('time-sub').textContent = State.data.work.focusSessionsToday + ' sessions · ' + State.data.work.focusMinutesToday + ' min today';
+    Charts.barChart(document.getElementById('focus-chart'), State.data.work.weeklyFocusMinutes, { color: '#22d3ee' });
+    document.getElementById('focus-summary').textContent = Charts.summary(State.data.work.weeklyFocusMinutes, 'Daily focus minutes', ' min');
+  }
+
+  document.body.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-task-toggle]');
+    if (!btn) return;
+    var t = State.data.work.tasks.filter(function (x) { return x.id === btn.getAttribute('data-task-toggle'); })[0];
+    if (!t) return;
+    if (!t.completed && t.priority === 'high') {
+      App.confirmAction({
+        title: 'Complete high-priority task',
+        body: 'Mark "' + t.title + '" as complete?',
+        confirmLabel: 'Mark complete',
+        onConfirm: function () { t.completed = true; State.save(); App.showToast('Task completed.', 'success'); renderAll(); }
+      });
+    } else {
+      t.completed = !t.completed;
+      State.save();
+      renderAll();
+    }
+  });
+
+  document.getElementById('add-task-btn').addEventListener('click', function () { App.openModal('modal-add-task'); });
+  document.getElementById('add-project-btn').addEventListener('click', function () {
+    App.openModal('modal-add-task');
+    setTimeout(function () { document.getElementById('at-type').value = 'project'; }, 0);
+  });
+
+  // ---- focus timer ----
+  var focusSeconds = 25 * 60, focusRunning = false, focusInterval = null;
+  function fmt(s) { var m = Math.floor(s / 60); var sec = s % 60; return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0'); }
+  document.getElementById('focus-minutes').addEventListener('change', function (e) {
+    if (!focusRunning) { focusSeconds = (parseInt(e.target.value, 10) || 25) * 60; document.getElementById('focus-display').textContent = fmt(focusSeconds); }
+  });
+  document.getElementById('focus-start-btn').addEventListener('click', function (e) {
+    if (focusRunning) { clearInterval(focusInterval); focusRunning = false; e.target.textContent = 'Resume'; return; }
+    focusRunning = true;
+    e.target.textContent = 'Pause';
+    focusInterval = setInterval(function () {
+      focusSeconds--;
+      document.getElementById('focus-display').textContent = fmt(Math.max(0, focusSeconds));
+      if (focusSeconds <= 0) {
+        clearInterval(focusInterval);
+        focusRunning = false;
+        var mins = parseInt(document.getElementById('focus-minutes').value, 10) || 25;
+        State.data.work.focusSessionsToday += 1;
+        State.data.work.focusMinutesToday += mins;
+        State.save();
+        App.showToast('Focus session complete. Great work.', 'success');
+        if (LifeOS.Sound) LifeOS.Sound.play('success');
+        renderTimeTracking();
+        e.target.textContent = 'Start focus session';
+        focusSeconds = mins * 60;
+        document.getElementById('focus-display').textContent = fmt(focusSeconds);
+      }
+    }, 1000);
+  });
+  document.getElementById('focus-reset-btn').addEventListener('click', function () {
+    clearInterval(focusInterval); focusRunning = false;
+    focusSeconds = (parseInt(document.getElementById('focus-minutes').value, 10) || 25) * 60;
+    document.getElementById('focus-display').textContent = fmt(focusSeconds);
+    document.getElementById('focus-start-btn').textContent = 'Start focus session';
+  });
+
+  function renderAll() { renderTabs(); renderTasks(); renderEvents(); renderCompleted(); renderTimeTracking(); }
+  renderAll();
+  document.addEventListener('lifeos:state-changed', renderAll);
+})();
+</script>
+</body>
+</html>

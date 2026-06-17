@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutrition — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+<style>
+  .ring-card { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+  .ring-card canvas { width: 96px; height: 96px; }
+  .ring-value { position: relative; }
+  .ring-center-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-center-label strong { font-family: var(--font-mono); font-size: 15px; }
+  .ring-center-label span { font-size: 9.5px; color: var(--text-tertiary); }
+  .scan-video { width: 100%; max-width: 320px; border-radius: var(--r-md); background: #000; aspect-ratio: 4/3; }
+</style>
+</head>
+<body data-page="nutrition">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Nutrition Status</h1><p class="page-sub">Meals, macros, and food tracking.</p></div>
+        <div class="hero-actions" style="margin:0">
+          <button type="button" class="btn btn-secondary" id="scan-food-btn">Scan food</button>
+          <button type="button" class="btn btn-primary" id="add-meal-btn">Add meal</button>
+        </div>
+      </div>
+
+      <section class="panel panel-pad" style="margin-bottom:var(--sp-5)" aria-labelledby="rings-heading">
+        <h2 class="visually-hidden" id="rings-heading">Daily macro progress</h2>
+        <div class="grid grid-cols-6" id="ring-grid"></div>
+      </section>
+
+      <div class="home-grid">
+        <div class="stack col-left">
+          <section class="panel panel-pad" aria-labelledby="timeline-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="timeline-heading">Meal Timeline</h2></div></div>
+            <ul id="meal-timeline"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="search-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="search-heading">Food Search</h2></div></div>
+            <div class="field"><label for="food-search" class="visually-hidden">Search foods</label><input id="food-search" type="search" placeholder="Search foods…"></div>
+            <ul id="food-search-results" style="margin-top:var(--sp-3)"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="recent-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="recent-heading">Recent Foods</h2></div></div>
+            <ul id="recent-foods-list"></ul>
+          </section>
+        </div>
+
+        <div class="stack col-right">
+          <section class="panel panel-pad" aria-labelledby="saved-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="saved-heading">Saved Meals</h2></div></div>
+            <ul id="saved-meals-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="recipes-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="recipes-heading">Recipes</h2></div></div>
+            <ul id="recipes-list"></ul>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="avg-heading">
+            <div class="panel-head"><div><h2 class="panel-title" id="avg-heading">Weekly Averages</h2></div></div>
+            <div id="weekly-avg-grid" class="grid grid-cols-2"></div>
+          </section>
+
+          <section class="panel panel-pad" aria-labelledby="grocery-heading">
+            <div class="panel-head">
+              <div><h2 class="panel-title" id="grocery-heading">Grocery List Generator</h2></div>
+              <button type="button" class="btn btn-secondary btn-sm" id="generate-grocery-btn">Generate</button>
+            </div>
+            <ul id="grocery-list"><li class="empty-state"><p>Generate a list from your recent foods and recipes.</p></li></ul>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<div class="overlay" id="modal-scan-food">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+    <div class="modal-head"><h2 class="modal-title" id="scan-title">Scan food</h2><button type="button" class="modal-close" data-modal-close aria-label="Close">&times;</button></div>
+    <div class="modal-body">
+      <video class="scan-video" id="scan-video" autoplay muted playsinline></video>
+      <p id="scan-status" style="font-size:12.5px;color:var(--text-tertiary)">Requesting camera access for barcode scanning…</p>
+      <button type="button" class="btn btn-primary btn-block" id="simulate-scan-btn">Simulate scan result</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts;
+
+  var RINGS = [
+    { key: 'calories', label: 'Calories', unit: '', color: '#f2a93b' },
+    { key: 'protein', label: 'Protein', unit: 'g', color: '#22d3ee' },
+    { key: 'carbs', label: 'Carbs', unit: 'g', color: '#38bdf8' },
+    { key: 'fat', label: 'Fat', unit: 'g', color: '#fb7185' },
+    { key: 'fiber', label: 'Fiber', unit: 'g', color: '#34d399' },
+    { key: 'waterOz', label: 'Water', unit: 'oz', color: '#38bdf8' }
+  ];
+
+  function renderRings() {
+    var host = document.getElementById('ring-grid');
+    host.innerHTML = RINGS.map(function (r, i) {
+      var d = State.data.today[r.key];
+      return '<div class="ring-card"><div class="ring-value"><canvas id="ring-' + i + '"></canvas>' +
+        '<div class="ring-center-label"><strong>' + d.consumed + '</strong><span>/ ' + d.target + ' ' + r.unit + '</span></div></div>' +
+        '<span style="font-size:12px;color:var(--text-secondary);font-weight:600">' + r.label + '</span></div>';
+    }).join('');
+    RINGS.forEach(function (r, i) {
+      var d = State.data.today[r.key];
+      Charts.ring(document.getElementById('ring-' + i), d.consumed, d.target, { color: r.color, thickness: 7 });
+    });
+  }
+
+  function renderTimeline() {
+    var meals = State.data.nutrition.meals;
+    document.getElementById('meal-timeline').innerHTML = meals.length ? meals.map(function (m) {
+      return '<li class="list-row"><span class="mono" style="width:50px;flex-shrink:0;font-size:12px;color:var(--text-tertiary)">' + m.time + '</span>' +
+        '<span style="flex:1"><strong style="font-size:13.5px">' + App.escapeHtml(m.name) + '</strong><br><span style="font-size:12px;color:var(--text-tertiary)">' + (m.items.join(', ') || 'No items listed') + '</span></span>' +
+        '<span class="mono" style="font-size:12.5px">' + m.calories + ' kcal</span></li>';
+    }).join('') : '<li class="empty-state"><p>No meals logged yet today.</p></li>';
+  }
+
+  function renderRecentFoods() {
+    document.getElementById('recent-foods-list').innerHTML = State.data.nutrition.recentFoods.map(function (f) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + f.name + '</span><span class="mono" style="font-size:12px;color:var(--text-tertiary)">' + f.calories + ' kcal · ' + f.protein + 'g P</span></li>';
+    }).join('');
+  }
+
+  function renderSavedMeals() {
+    document.getElementById('saved-meals-list').innerHTML = State.data.nutrition.savedMeals.map(function (m) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + m.name + '</span><button type="button" class="btn btn-ghost btn-sm" data-add-saved="' + m.id + '">Add</button></li>';
+    }).join('');
+    document.querySelectorAll('[data-add-saved]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var saved = State.data.nutrition.savedMeals.filter(function (m) { return m.id === btn.getAttribute('data-add-saved'); })[0];
+        State.data.nutrition.meals.push({ id: 'm' + Date.now(), name: saved.name, time: new Date().toTimeString().slice(0, 5), calories: saved.calories, protein: saved.protein, carbs: 0, fat: 0, items: [saved.name] });
+        State.data.today.calories.consumed += saved.calories;
+        State.data.today.protein.consumed += saved.protein;
+        State.save();
+        App.showToast('"' + saved.name + '" added to today’s log.', 'success');
+        renderAll();
+      });
+    });
+  }
+
+  function renderRecipes() {
+    document.getElementById('recipes-list').innerHTML = State.data.nutrition.recipes.map(function (r) {
+      return '<li class="list-row"><span style="flex:1"><strong style="font-size:13.5px">' + r.name + '</strong><br><span style="font-size:12px;color:var(--text-tertiary)">' + r.calories + ' kcal · ' + r.protein + 'g protein · ' + r.minutes + ' min</span></span></li>';
+    }).join('');
+  }
+
+  function renderWeeklyAvg() {
+    var a = State.data.nutrition.weeklyAverages;
+    document.getElementById('weekly-avg-grid').innerHTML = [
+      { l: 'Calories', v: a.calories + ' kcal' }, { l: 'Protein', v: a.protein + ' g' },
+      { l: 'Fiber', v: a.fiber + ' g' }, { l: 'Water', v: a.water + ' oz' }
+    ].map(function (i) { return '<div style="padding:10px;border:1px solid var(--hairline);border-radius:var(--r-sm);text-align:center"><p class="metric-value mono" style="font-size:16px">' + i.v + '</p><p style="font-size:11px;color:var(--text-tertiary)">' + i.l + '</p></div>'; }).join('');
+  }
+
+  function foodLibrary() {
+    return State.data.nutrition.recentFoods.concat(State.data.nutrition.savedMeals.map(function (s) { return { name: s.name, calories: s.calories, protein: s.protein }; }));
+  }
+  function renderFoodSearch(query) {
+    var host = document.getElementById('food-search-results');
+    if (!query) { host.innerHTML = ''; return; }
+    var results = foodLibrary().filter(function (f) { return f.name.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
+    host.innerHTML = results.length ? results.map(function (f) {
+      return '<li class="list-row"><span style="flex:1;font-size:13.5px">' + f.name + '</span><span class="mono" style="font-size:12px;color:var(--text-tertiary)">' + f.calories + ' kcal</span></li>';
+    }).join('') : '<li class="empty-state"><p>No foods match "' + App.escapeHtml(query) + '".</p></li>';
+  }
+  document.getElementById('food-search').addEventListener('input', function (e) { renderFoodSearch(e.target.value.trim()); });
+
+  document.getElementById('generate-grocery-btn').addEventListener('click', function () {
+    var items = {};
+    State.data.nutrition.recentFoods.forEach(function (f) { items[f.name.replace(/\s*\(.*?\)/, '')] = true; });
+    State.data.nutrition.recipes.forEach(function (r) { items[r.name] = true; });
+    var list = Object.keys(items);
+    document.getElementById('grocery-list').innerHTML = list.map(function (item, i) {
+      return '<li class="list-row"><button type="button" class="habit-check" data-grocery-idx="' + i + '" aria-pressed="false" aria-label="Mark ' + App.escapeHtml(item) + ' purchased">' + App.ICONS.check + '</button><span style="flex:1;font-size:13.5px">' + App.escapeHtml(item) + '</span></li>';
+    }).join('');
+    document.querySelectorAll('[data-grocery-idx]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pressed = btn.getAttribute('aria-pressed') === 'true';
+        btn.setAttribute('aria-pressed', !pressed);
+        btn.closest('li').querySelector('span').style.textDecoration = !pressed ? 'line-through' : 'none';
+      });
+    });
+    App.showToast('Grocery list generated from your recent foods and recipes.', 'success');
+  });
+
+  document.getElementById('add-meal-btn').addEventListener('click', function () { App.openModal('modal-add-meal'); });
+
+  // ---- barcode scan (camera preview + simulated result, since real decoding needs an external library) ----
+  var scanStream = null;
+  document.getElementById('scan-food-btn').addEventListener('click', function () {
+    App.openModal('modal-scan-food');
+    var video = document.getElementById('scan-video');
+    var status = document.getElementById('scan-status');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status.textContent = 'Camera access isn’t supported in this browser. Use Simulate scan result below, or search foods manually.';
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function (stream) {
+      scanStream = stream;
+      video.srcObject = stream;
+      status.textContent = 'Point your camera at a barcode, or tap simulate below.';
+    }).catch(function () {
+      status.textContent = 'Camera permission was denied. Use Simulate scan result below, or search foods manually.';
+    });
+  });
+  document.getElementById('simulate-scan-btn').addEventListener('click', function () {
+    var food = { name: 'Greek Yogurt (1 cup)', calories: 150, protein: 20, carbs: 9, fat: 4 };
+    State.data.nutrition.meals.push({ id: 'm' + Date.now(), name: 'Scanned item', time: new Date().toTimeString().slice(0, 5), calories: food.calories, protein: food.protein, carbs: food.carbs, fat: food.fat, items: [food.name] });
+    State.data.today.calories.consumed += food.calories;
+    State.data.today.protein.consumed += food.protein;
+    State.save();
+    App.closeModal('modal-scan-food');
+    App.showToast('Logged ' + food.name + ' from scan.', 'success');
+    renderAll();
+  });
+  document.querySelectorAll('#modal-scan-food [data-modal-close], #modal-scan-food.overlay').forEach(function (el) {
+    el.addEventListener('click', function (e) {
+      if (e.target === el || e.target.closest('[data-modal-close]')) {
+        if (scanStream) { scanStream.getTracks().forEach(function (t) { t.stop(); }); scanStream = null; }
+      }
+    });
+  });
+
+  function renderAll() {
+    renderRings(); renderTimeline(); renderRecentFoods(); renderSavedMeals(); renderRecipes(); renderWeeklyAvg();
+  }
+  renderAll();
+  document.addEventListener('lifeos:state-changed', renderAll);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application Pipeline — LifeOS</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+</head>
+<body data-page="applications">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+<div id="global-modals-root"></div>
+<div class="app-shell">
+  <div id="sidebar-root"></div>
+  <div class="main">
+    <div id="topbar-root"></div>
+    <main class="content" id="main-content">
+      <div class="page-head">
+        <div><h1 class="page-title">Application Pipeline</h1><p class="page-sub">Track every job application from saved to offer.</p></div>
+        <button type="button" class="btn btn-primary" id="add-app-btn">Add application</button>
+      </div>
+
+      <section class="panel panel-pad" style="margin-bottom:var(--sp-5)">
+        <div class="grid grid-cols-6" id="app-summary-grid"></div>
+      </section>
+
+      <div class="kanban-board" id="kanban-board" role="list" aria-label="Application pipeline columns"></div>
+    </main>
+  </div>
+</div>
+<div id="bottomnav-root"></div>
+
+<div class="overlay" id="modal-add-application">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aa-title">
+    <div class="modal-head"><h2 class="modal-title" id="aa-title">Add application</h2><button type="button" class="modal-close" data-modal-close aria-label="Close">&times;</button></div>
+    <form class="modal-body" id="form-add-application">
+      <div class="field-row">
+        <div class="field"><label for="aa-company">Company</label><input id="aa-company" name="company" type="text" required></div>
+        <div class="field"><label for="aa-role">Position</label><input id="aa-role" name="role" type="text" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="aa-location">Location</label><input id="aa-location" name="location" type="text" placeholder="e.g. Remote"></div>
+        <div class="field"><label for="aa-mode">Work mode</label><select id="aa-mode" name="mode"><option>Remote</option><option>Hybrid</option><option>Onsite</option></select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="aa-status">Status</label><select id="aa-status" name="status"><option>Saved</option><option>Preparing</option><option>Applied</option><option>Assessment</option><option>Interview</option><option>Waitlisted</option><option>Offer</option><option>Rejected</option></select></div>
+        <div class="field"><label for="aa-source">Source</label><input id="aa-source" name="source" type="text" placeholder="e.g. LinkedIn"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="aa-salary">Salary (optional)</label><input id="aa-salary" name="salary" type="text" placeholder="e.g. $25/hr"></div>
+        <div class="field"><label for="aa-followup">Follow-up date</label><input id="aa-followup" name="followUp" type="date"></div>
+      </div>
+      <div class="field"><label for="aa-notes">Notes</label><textarea id="aa-notes" name="notes"></textarea></div>
+      <div class="modal-foot"><button type="button" class="btn btn-ghost" data-modal-close>Cancel</button><button type="submit" class="btn btn-primary">Add application</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="overlay" id="modal-app-detail">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ad-title" id="app-detail-content"></div>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/assistant-orb.js"></script>
+<script src="assets/js/sound-controller.js"></script>
+<script src="assets/js/voice-assistant.js"></script>
+<script src="assets/js/voice-commands.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+(function () {
+  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var STAGES = ['Saved', 'Preparing', 'Applied', 'Assessment', 'Interview', 'Waitlisted', 'Offer', 'Rejected'];
+
+  function renderSummary() {
+    var counts = {};
+    State.data.applications.forEach(function (a) { counts[a.status] = (counts[a.status] || 0) + 1; });
+    document.getElementById('app-summary-grid').innerHTML = STAGES.map(function (s) {
+      return '<div style="text-align:center"><p class="metric-value mono" style="font-size:18px">' + (counts[s] || 0) + '</p><p class="label-tag" style="margin-top:2px">' + s + '</p></div>';
+    }).join('');
+  }
+
+  function cardHtml(a) {
+    return '<div class="app-card" data-app-id="' + a.id + '" role="listitem" tabindex="0">' +
+      '<p class="app-card-company">' + App.escapeHtml(a.company) + '</p>' +
+      '<p class="app-card-role">' + App.escapeHtml(a.role) + '</p>' +
+      '<div class="app-card-meta">' +
+      '<span class="tag status-neutral">' + App.escapeHtml(a.location || 'Unspecified') + '</span>' +
+      '<span class="tag status-info">' + a.mode + '</span>' +
+      (a.salary ? '<span class="tag status-good">' + App.escapeHtml(a.salary) + '</span>' : '') +
+      '</div>' +
+      (a.followUp ? '<p style="font-size:11px;color:var(--accent-amber);margin-top:8px">Follow up ' + a.followUp + '</p>' : '') +
+      '</div>';
+  }
+
+  function renderBoard() {
+    document.getElementById('kanban-board').innerHTML = STAGES.map(function (stage) {
+      var items = State.data.applications.filter(function (a) { return a.status === stage; });
+      return '<div class="kanban-col" role="listitem"><div class="kanban-col-head"><span>' + stage + '</span><span class="kanban-count">' + items.length + '</span></div>' +
+        '<div class="kanban-cards">' + (items.length ? items.map(cardHtml).join('') : '<p class="empty-state" style="padding:var(--sp-4)"><span style="font-size:12px">No applications</span></p>') + '</div></div>';
+    }).join('');
+    document.querySelectorAll('[data-app-id]').forEach(function (card) {
+      card.addEventListener('click', function () { openDetail(card.getAttribute('data-app-id')); });
+      card.addEventListener('keydown', function (e) { if (e.key === 'Enter') openDetail(card.getAttribute('data-app-id')); });
+    });
+  }
+
+  function openDetail(id) {
+    var a = State.data.applications.filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    document.getElementById('app-detail-content').innerHTML = '' +
+      '<div class="modal-head"><h2 class="modal-title" id="ad-title">' + App.escapeHtml(a.company) + '</h2><button type="button" class="modal-close" data-modal-close aria-label="Close">' + ICONS.close + '</button></div>' +
+      '<div class="modal-body">' +
+      '<p style="font-size:14px;color:var(--text-secondary)">' + App.escapeHtml(a.role) + '</p>' +
+      '<div class="grid grid-cols-2" style="margin-top:8px">' +
+      '<div><p class="label-tag">Location</p><p style="font-size:13.5px">' + App.escapeHtml(a.location || '—') + ' · ' + a.mode + '</p></div>' +
+      '<div><p class="label-tag">Date applied</p><p style="font-size:13.5px">' + (a.dateApplied || 'Not yet applied') + '</p></div>' +
+      '<div><p class="label-tag">Source</p><p style="font-size:13.5px">' + App.escapeHtml(a.source || '—') + '</p></div>' +
+      '<div><p class="label-tag">Salary</p><p style="font-size:13.5px">' + App.escapeHtml(a.salary || 'Not listed') + '</p></div>' +
+      '</div>' +
+      '<div class="field" style="margin-top:12px"><label for="ad-notes">Notes</label><textarea id="ad-notes">' + App.escapeHtml(a.notes || '') + '</textarea></div>' +
+      '<div class="field"><label for="ad-status">Status</label><select id="ad-status">' + STAGES.map(function (s) { return '<option ' + (s === a.status ? 'selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+      '<button type="button" class="btn btn-danger" id="delete-app-btn">Delete</button>' +
+      '<button type="button" class="btn btn-primary" id="save-app-btn">Save changes</button>' +
+      '</div>';
+    App.openModal('modal-app-detail');
+    document.querySelectorAll('#modal-app-detail [data-modal-close]').forEach(function (b) { b.addEventListener('click', function () { App.closeModal('modal-app-detail'); }); });
+
+    document.getElementById('save-app-btn').addEventListener('click', function () {
+      var newStatus = document.getElementById('ad-status').value;
+      var newNotes = document.getElementById('ad-notes').value;
+      if (newStatus !== a.status) {
+        App.confirmAction({
+          title: 'Update application status',
+          body: 'Move ' + a.company + ' — ' + a.role + ' from "' + a.status + '" to "' + newStatus + '"?',
+          confirmLabel: 'Update status',
+          onConfirm: function () {
+            a.status = newStatus; a.notes = newNotes;
+            if (newStatus === 'Applied' && !a.dateApplied) a.dateApplied = new Date().toISOString().slice(0, 10);
+            State.save();
+            App.closeModal('modal-app-detail');
+            App.showToast('Status updated to ' + newStatus + '.', 'success');
+            renderAll();
+          }
+        });
+      } else {
+        a.notes = newNotes;
+        State.save();
+        App.closeModal('modal-app-detail');
+        App.showToast('Notes saved.', 'success');
+      }
+    });
+    document.getElementById('delete-app-btn').addEventListener('click', function () {
+      App.confirmAction({
+        title: 'Delete application',
+        body: 'Permanently delete the application for ' + a.company + ' — ' + a.role + '? This cannot be undone.',
+        confirmLabel: 'Delete',
+        danger: true,
+        onConfirm: function () {
+          State.data.applications = State.data.applications.filter(function (x) { return x.id !== a.id; });
+          State.save();
+          App.closeModal('modal-app-detail');
+          App.showToast('Application deleted.', 'info');
+          renderAll();
+        }
+      });
+    });
+  }
+
+  document.getElementById('add-app-btn').addEventListener('click', function () { App.openModal('modal-add-application'); });
+  if (new URLSearchParams(window.location.search).get('new')) { App.openModal('modal-add-application'); }
+
+  document.getElementById('form-add-application').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target;
+    State.data.applications.push({
+      id: 'a' + Date.now(), company: f.company.value, role: f.role.value, location: f.location.value,
+      mode: f.mode.value, dateApplied: f.status.value === 'Applied' ? new Date().toISOString().slice(0, 10) : null,
+      status: f.status.value, followUp: f.followUp.value || null, notes: f.notes.value, source: f.source.value, salary: f.salary.value || null
+    });
+    State.save();
+    App.closeModal('modal-add-application');
+    f.reset();
+    App.showToast('Application added.', 'success');
+    renderAll();
+  });
+
+  function renderAll() { renderSummary(); renderBoard(); }
+  renderAll();
+  document.addEventListener('lifeos:state-changed', renderAll);
+})();
+</script>
+</body>
+</html>
