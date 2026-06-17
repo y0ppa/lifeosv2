@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Sample data + persistent state
+   Brain — Sample data + persistent state
    All numbers are realistic SAMPLE DATA for demonstration only. State is
    persisted to localStorage so interactions (habit toggles, logged sets,
    weight entries, etc.) survive a reload.
@@ -295,8 +295,8 @@
 
   State.load();
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.State = State;
-  global.LifeOS.DEFAULT_DATA = DEFAULT_DATA;
-  global.LifeOS.util = { daysAgoISO: daysAgoISO, seeded: seeded };
+  global.Brain = global.Brain || {};
+  global.Brain.State = State;
+  global.Brain.DEFAULT_DATA = DEFAULT_DATA;
+  global.Brain.util = { daysAgoISO: daysAgoISO, seeded: seeded };
 })(window);

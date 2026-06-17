@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LifeOS — Command Center</title>
-<meta name="description" content="LifeOS Command Center — your AI-assisted health and productivity dashboard.">
+<title>Brain — Command Center</title>
+<meta name="description" content="Brain Command Center — your AI-assisted health and productivity dashboard.">
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/css/styles.css">
 <link rel="stylesheet" href="assets/css/jarvis-ui.css">
@@ -21,7 +21,7 @@
       <circle cx="36" cy="36" r="4" fill="#22d3ee"></circle>
     </svg>
   </div>
-  <h1 class="boot-title">Life<span>OS</span></h1>
+  <h1 class="boot-title">Br<span>ain</span></h1>
   <p class="boot-status">Initializing…</p>
   <div class="boot-bar"><div class="boot-bar-fill"></div></div>
   <button type="button" class="boot-skip">Skip</button>
@@ -174,7 +174,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 (function () {
-  var App = LifeOS.App, State = LifeOS.State, Charts = LifeOS.Charts, ICONS = App.ICONS;
+  var App = Brain.App, State = Brain.State, Charts = Brain.Charts, ICONS = App.ICONS;
 
   function fmtTime(t) {
     var p = t.split(':'); var h = parseInt(p[0], 10); var am = h >= 12 ? 'PM' : 'AM'; var h12 = h % 12 === 0 ? 12 : h % 12;
@@ -182,7 +182,7 @@
   }
 
   function renderBriefing() {
-    document.getElementById('briefing-text').textContent = LifeOS.Commands.briefingText();
+    document.getElementById('briefing-text').textContent = Brain.Commands.briefingText();
     var chips = ['Plan my day', 'Analyze my weight trend', 'Suggest a meal', 'Show upcoming deadlines'];
     document.getElementById('suggested-cmds').innerHTML = chips.map(function (c) {
       return '<button type="button" class="suggested-chip" data-cmd="' + c + '">' + c + '</button>';
@@ -351,23 +351,23 @@
   document.getElementById('plan-day-btn').addEventListener('click', function () { runCommand('Plan my day'); });
 
   // ---- orb + voice wiring on the home hero ----
-  var orb = LifeOS.createOrb(document.getElementById('home-orb'));
-  LifeOS.Voice.setOrb(orb);
+  var orb = Brain.createOrb(document.getElementById('home-orb'));
+  Brain.Voice.setOrb(orb);
   document.getElementById('home-mic-icon').innerHTML = ICONS.mic;
   var micBtn = document.getElementById('home-mic-btn');
   var stateLabel = document.getElementById('home-orb-state');
   var transcriptEl = document.getElementById('home-transcript');
 
-  LifeOS.Voice.on('state', function (s) {
+  Brain.Voice.on('state', function (s) {
     micBtn.setAttribute('data-state', s);
     stateLabel.textContent = 'ARIA — ' + s.charAt(0).toUpperCase() + s.slice(1);
   });
-  LifeOS.Voice.on('transcript', function (t) {
+  Brain.Voice.on('transcript', function (t) {
     transcriptEl.textContent = t.text;
     transcriptEl.classList.toggle('is-final', t.isFinal);
     if (t.isFinal) handleUtterance(t.text);
   });
-  LifeOS.Voice.on('error', function (err) {
+  Brain.Voice.on('error', function (err) {
     if (err === 'unsupported') {
       App.showToast('Voice recognition isn’t supported in this browser. Try the Assistant chat instead.', 'warn');
     } else if (err === 'mic-permission-denied' || err === 'not-allowed') {
@@ -376,9 +376,9 @@
   });
 
   micBtn.addEventListener('click', function () {
-    if (LifeOS.Voice.getState() === 'listening') { LifeOS.Voice.stop(); }
-    else if (!LifeOS.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Use the Assistant chat page instead.', 'warn'); }
-    else { LifeOS.Voice.start(); }
+    if (Brain.Voice.getState() === 'listening') { Brain.Voice.stop(); }
+    else if (!Brain.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Use the Assistant chat page instead.', 'warn'); }
+    else { Brain.Voice.start(); }
   });
 
   function handleUtterance(text) {
@@ -386,10 +386,10 @@
   }
 
   function runCommand(text) {
-    var result = LifeOS.Commands.process(text);
+    var result = Brain.Commands.process(text);
     if (result.silent) return;
     if (result.needsConfirm) {
-      LifeOS.Voice.setState('confirm');
+      Brain.Voice.setState('confirm');
       App.confirmAction({
         title: 'Confirm action',
         body: result.reply,
@@ -397,16 +397,16 @@
         onConfirm: function () {
           var msg = result.onConfirm();
           document.getElementById('briefing-text').textContent = msg;
-          LifeOS.Voice.speak(msg);
+          Brain.Voice.speak(msg);
         },
-        onCancel: function () { LifeOS.Voice.setState('idle'); }
+        onCancel: function () { Brain.Voice.setState('idle'); }
       });
       return;
     }
     if (result.action) result.action();
     if (result.reply) {
       document.getElementById('briefing-text').textContent = result.reply;
-      LifeOS.Voice.speak(result.reply);
+      Brain.Voice.speak(result.reply);
     }
     if (result.navigate) {
       setTimeout(function () { window.location.href = result.navigate; }, 900);

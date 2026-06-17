@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Sound controller
+   Brain — Sound controller
    All interface tones are synthesized locally with the Web Audio API
    (oscillators + envelopes). No audio files are bundled, so there is
    nothing copyrighted or third-party involved. Sounds are off by default,
@@ -22,7 +22,7 @@
   }
 
   function settings() {
-    var s = global.LifeOS && global.LifeOS.State && global.LifeOS.State.data && global.LifeOS.State.data.settings;
+    var s = global.Brain && global.Brain.State && global.Brain.State.data && global.Brain.State.data.settings;
     return (s && s.voice) || { soundEnabled: false, soundVolume: 0.4 };
   }
 
@@ -66,6 +66,6 @@
     }
   }
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.Sound = { play: play };
+  global.Brain = global.Brain || {};
+  global.Brain.Sound = { play: play };
 })(window);

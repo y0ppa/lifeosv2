@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Application shell
+   Brain — Application shell
    Navigation injection, topbar chrome, modals, toasts, confirm dialogs,
    habit toggles, theme switching, boot sequence, and the global voice
    entry point shared by every page.
@@ -7,8 +7,8 @@
 (function (global) {
   'use strict';
 
-  var LifeOS = global.LifeOS = global.LifeOS || {};
-  var State = LifeOS.State;
+  var Brain = global.Brain = global.Brain || {};
+  var State = Brain.State;
 
   /* ---------------------------------------------------------------------- */
   /* Icons — small original line-icon set (24x24, stroke-based)             */
@@ -83,9 +83,9 @@
     var page = currentPage();
     var html = '' +
       '<nav class="sidebar" aria-label="Primary">' +
-      '<a class="sidebar-brand" href="index.html" aria-label="LifeOS home">' +
+      '<a class="sidebar-brand" href="index.html" aria-label="Brain home">' +
       '<span class="brand-mark">' + ICONS.assistant.replace('currentColor', '#03141a') + '</span>' +
-      '<span class="brand-name">Life<span>OS</span></span>' +
+      '<span class="brand-name">Br<span>ain</span></span>' +
       '</a>' +
       '<ul class="nav-list">' +
       NAV_ITEMS.map(function (item) {
@@ -296,7 +296,7 @@
     document.getElementById('confirm-ok-btn').addEventListener('click', function () {
       cleanup();
       if (opts.onConfirm) opts.onConfirm();
-      if (LifeOS.Sound) LifeOS.Sound.play('confirm');
+      if (Brain.Sound) Brain.Sound.play('confirm');
     });
   }
 
@@ -377,7 +377,7 @@
       State.save();
       closeModal('modal-log-weight');
       showToast('Weight logged: ' + val + ' ' + State.data.weight.unit + '.', 'success');
-      if (LifeOS.Sound) LifeOS.Sound.play('success');
+      if (Brain.Sound) Brain.Sound.play('success');
       document.dispatchEvent(new CustomEvent('lifeos:weight-logged'));
     });
 
@@ -403,7 +403,7 @@
       closeModal('modal-add-meal');
       f.reset();
       showToast('"' + meal.name + '" added to today’s log.', 'success');
-      if (LifeOS.Sound) LifeOS.Sound.play('success');
+      if (Brain.Sound) Brain.Sound.play('success');
       document.dispatchEvent(new CustomEvent('lifeos:meal-added'));
     });
 
@@ -423,7 +423,7 @@
       closeModal('modal-add-task');
       f.reset();
       showToast('"' + task.title + '" added to your work queue.', 'success');
-      if (LifeOS.Sound) LifeOS.Sound.play('success');
+      if (Brain.Sound) Brain.Sound.play('success');
       document.dispatchEvent(new CustomEvent('lifeos:task-added'));
     });
   }
@@ -442,7 +442,7 @@
       habit.week[habit.week.length - 1] = habit.completedToday ? 1 : 0;
       habit.streak = habit.completedToday ? habit.streak + 1 : Math.max(0, habit.streak - 1);
       State.save();
-      if (LifeOS.Sound) LifeOS.Sound.play(habit.completedToday ? 'success' : 'notification');
+      if (Brain.Sound) Brain.Sound.play(habit.completedToday ? 'success' : 'notification');
       showToast(habit.completedToday ? '"' + habit.name + '" marked complete.' : '"' + habit.name + '" marked incomplete.', 'success');
       document.dispatchEvent(new CustomEvent('lifeos:habits-changed'));
     });
@@ -459,7 +459,7 @@
     var barFill = overlay.querySelector('.boot-bar-fill');
     var skipBtn = overlay.querySelector('.boot-skip');
     var lines = [
-      'Initializing LifeOS core…',
+      'Initializing Brain core…',
       'Loading nutrition, fitness, and work data…',
       'Connecting system interfaces…',
       'Calibrating ' + State.data.profile.assistantName + ' voice console…',
@@ -550,7 +550,7 @@
     init();
   }
 
-  LifeOS.App = {
+  Brain.App = {
     ICONS: ICONS,
     showToast: showToast,
     openModal: openModal,

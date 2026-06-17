@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Lightweight canvas chart helpers (no external dependencies)
+   Brain — Lightweight canvas chart helpers (no external dependencies)
    Every chart also exposes a plain-text summary for screen readers.
    ========================================================================== */
 (function (global) {
@@ -215,8 +215,8 @@
     return lineChart(canvas, series, Object.assign({ fill: true }, opts || {}));
   }
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.Charts = {
+  global.Brain = global.Brain || {};
+  global.Brain.Charts = {
     lineChart: lineChart,
     barChart: barChart,
     ring: ring,

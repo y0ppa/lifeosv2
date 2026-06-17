@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Voice / chat command matching
+   Brain — Voice / chat command matching
    Maps natural-language demo commands to read-only answers or confirmed
    data-changing actions. Used by both the chat assistant and the voice
    console so behavior stays identical across input methods.
@@ -13,7 +13,7 @@
 (function (global) {
   'use strict';
 
-  function State() { return global.LifeOS.State; }
+  function State() { return global.Brain.State; }
   function data() { return State().data; }
 
   function fmtTime(t) {
@@ -204,7 +204,7 @@
     {
       test: /stop speaking|stop talking|be quiet/i,
       run: function () {
-        if (global.LifeOS.Voice) global.LifeOS.Voice.stopSpeaking();
+        if (global.Brain.Voice) global.Brain.Voice.stopSpeaking();
         return { reply: '', silent: true };
       }
     },
@@ -227,6 +227,6 @@
     };
   }
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.Commands = { process: process, briefingText: briefingText };
+  global.Brain = global.Brain || {};
+  global.Brain.Commands = { process: process, briefingText: briefingText };
 })(window);

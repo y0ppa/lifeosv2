@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Assistant — LifeOS</title>
+<title>Assistant — Brain</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/css/styles.css">
 <link rel="stylesheet" href="assets/css/jarvis-ui.css">
@@ -45,7 +45,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 (function () {
-  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var App = Brain.App, State = Brain.State, ICONS = App.ICONS;
   document.getElementById('assistant-name-title').textContent = State.data.profile.assistantName;
   document.getElementById('chat-mic-btn').innerHTML = ICONS.mic;
 
@@ -113,19 +113,19 @@
   function handleSend(text) {
     if (!text.trim()) return;
     addUserMessage(text);
-    var result = LifeOS.Commands.process(text);
+    var result = Brain.Commands.process(text);
     if (result.silent) return;
     if (result.needsConfirm) {
       addConfirmCard(result.reply, function () {
         var msg = result.onConfirm();
         addAssistantMessage(msg, { isFact: true, source: sourceFor(text) });
-        LifeOS.Voice.speak(msg);
+        Brain.Voice.speak(msg);
       });
       return;
     }
     if (result.action) result.action();
     addAssistantMessage(result.reply, { isFact: isFact(text), source: sourceFor(text) });
-    LifeOS.Voice.speak(result.reply);
+    Brain.Voice.speak(result.reply);
     if (result.navigate) setTimeout(function () { window.location.href = result.navigate; }, 1000);
   }
 
@@ -137,10 +137,10 @@
   });
 
   document.getElementById('chat-mic-btn').addEventListener('click', function () {
-    if (!LifeOS.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Type your message instead.', 'warn'); return; }
-    LifeOS.Voice.start();
+    if (!Brain.Voice.isRecognitionSupported) { App.showToast('Voice recognition isn’t supported in this browser. Type your message instead.', 'warn'); return; }
+    Brain.Voice.start();
   });
-  LifeOS.Voice.on('transcript', function (t) {
+  Brain.Voice.on('transcript', function (t) {
     document.getElementById('chat-input').value = t.text;
     if (t.isFinal) { handleSend(t.text); document.getElementById('chat-input').value = ''; }
   });
@@ -156,7 +156,7 @@
       else bubble('assistant', '<div class="chat-bubble">' + App.escapeHtml(m.text) + '</div>');
     });
   } else {
-    addAssistantMessage(LifeOS.Commands.briefingText(), { isFact: true, source: 'Daily briefing' });
+    addAssistantMessage(Brain.Commands.briefingText(), { isFact: true, source: 'Daily briefing' });
   }
 })();
 </script>

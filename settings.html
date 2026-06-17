@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Settings — LifeOS</title>
+<title>Settings — Brain</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/css/styles.css">
 <link rel="stylesheet" href="assets/css/jarvis-ui.css">
@@ -126,7 +126,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 (function () {
-  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var App = Brain.App, State = Brain.State, ICONS = App.ICONS;
   document.getElementById('privacy-heading').closest('section').querySelector('.mic-permission-note').innerHTML =
     ICONS.lock + '<span>Voice audio is processed locally by your browser\'s speech engine and is never uploaded to a server. The microphone only activates while listening is on, and a visible indicator shows whenever it\'s active.</span>';
 
@@ -231,7 +231,7 @@
   document.getElementById('wake-phrase').addEventListener('change', function (e) { d.settings.voice.wakePhrase = e.target.checked; State.save(); });
   document.getElementById('voice-rate').addEventListener('change', function (e) { d.settings.voice.rate = parseFloat(e.target.value); State.save(); });
   document.getElementById('voice-volume').addEventListener('change', function (e) { d.settings.voice.volume = parseFloat(e.target.value); State.save(); });
-  document.getElementById('sound-enabled').addEventListener('change', function (e) { d.settings.voice.soundEnabled = e.target.checked; State.save(); if (e.target.checked && LifeOS.Sound) LifeOS.Sound.play('activate'); });
+  document.getElementById('sound-enabled').addEventListener('change', function (e) { d.settings.voice.soundEnabled = e.target.checked; State.save(); if (e.target.checked && Brain.Sound) Brain.Sound.play('activate'); });
   document.getElementById('sound-volume').addEventListener('change', function (e) { d.settings.voice.soundVolume = parseFloat(e.target.value); State.save(); });
   document.getElementById('quiet-enabled').addEventListener('change', function (e) { d.settings.quietHours.enabled = e.target.checked; State.save(); });
   document.getElementById('quiet-start').addEventListener('change', function (e) { d.settings.quietHours.start = e.target.value; State.save(); });
@@ -276,7 +276,7 @@
   document.getElementById('delete-account-btn').addEventListener('click', function () {
     App.confirmAction({
       title: 'Delete account',
-      body: 'This permanently erases all locally stored LifeOS data on this device, including goals, logs, and conversation history. This cannot be undone.',
+      body: 'This permanently erases all locally stored Brain data on this device, including goals, logs, and conversation history. This cannot be undone.',
       confirmLabel: 'Delete account',
       danger: true,
       onConfirm: function () {

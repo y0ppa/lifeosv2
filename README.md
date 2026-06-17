@@ -1,4 +1,4 @@
-# LifeOS — Command Center
+# Brain — Command Center
 
 A futuristic, voice-first personal dashboard for tracking workouts, nutrition, body weight, habits, work/school, and job applications — with an original AI assistant called **ARIA** (Adaptive Routine and Intelligence Assistant).
 
@@ -42,7 +42,7 @@ assets/
     styles.css      — design tokens, layout, navigation, shared components
     jarvis-ui.css    — AI orb, voice console, boot sequence, chat, kanban
   js/
-    data.js          — sample data + localStorage-backed state (LifeOS.State)
+    data.js          — sample data + localStorage-backed state (Brain.State)
     charts.js         — lightweight canvas line/bar/ring charts (no dependency)
     assistant-orb.js  — canvas-based AI orb renderer with 8 visual states
     voice-assistant.js— Web Speech API wrapper (recognition + synthesis)
@@ -51,7 +51,7 @@ assets/
     app.js            — navigation injection, modals, toasts, theme, habits
 ```
 
-Every page shares the same chrome (sidebar, topbar, bottom nav, modals) injected at runtime by `app.js`, so there is a single source of truth for navigation and shared widgets. Page-specific rendering lives in a small inline `<script>` at the bottom of each HTML file and reads/writes through `LifeOS.State`.
+Every page shares the same chrome (sidebar, topbar, bottom nav, modals) injected at runtime by `app.js`, so there is a single source of truth for navigation and shared widgets. Page-specific rendering lives in a small inline `<script>` at the bottom of each HTML file and reads/writes through `Brain.State`.
 
 ## Voice assistant (ARIA)
 

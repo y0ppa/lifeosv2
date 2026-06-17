@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — AI orb renderer
+   Brain — AI orb renderer
    An original animated visual core for the ARIA assistant. Pure canvas,
    no 3D library. Reacts to assistant state and (optionally) live mic
    amplitude. Respects prefers-reduced-motion and pauses when hidden.
@@ -231,6 +231,6 @@
     };
   }
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.createOrb = createOrb;
+  global.Brain = global.Brain || {};
+  global.Brain.createOrb = createOrb;
 })(window);

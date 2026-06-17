@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Active Workout — LifeOS</title>
+<title>Active Workout — Brain</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="assets/css/styles.css">
 <link rel="stylesheet" href="assets/css/jarvis-ui.css">
@@ -69,7 +69,7 @@
 <script src="assets/js/app.js"></script>
 <script>
 (function () {
-  var App = LifeOS.App, State = LifeOS.State, ICONS = App.ICONS;
+  var App = Brain.App, State = Brain.State, ICONS = App.ICONS;
   var workout = State.data.workouts.today;
   document.getElementById('session-title').textContent = workout.name;
 
@@ -93,7 +93,7 @@
     banner.classList.add('is-active');
     function tick() {
       timeEl.textContent = fmtClock(remaining);
-      if (remaining <= 0) { clearInterval(restInterval); banner.classList.remove('is-active'); if (LifeOS.Sound) LifeOS.Sound.play('notification'); return; }
+      if (remaining <= 0) { clearInterval(restInterval); banner.classList.remove('is-active'); if (Brain.Sound) Brain.Sound.play('notification'); return; }
       remaining--;
     }
     tick();
@@ -145,7 +145,7 @@
       var s = session[exIdx].sets[setIdx];
       s.done = !s.done;
       doneBtn.setAttribute('aria-pressed', s.done);
-      if (s.done) { startRest(90); if (LifeOS.Sound) LifeOS.Sound.play('success'); }
+      if (s.done) { startRest(90); if (Brain.Sound) Brain.Sound.play('success'); }
       return;
     }
     var addSetBtn = e.target.closest('[data-add-set]');
@@ -204,7 +204,7 @@
         State.save();
         clearInterval(tickInterval);
         App.showToast('Workout complete. Nice work!', 'success');
-        if (LifeOS.Sound) LifeOS.Sound.play('success');
+        if (Brain.Sound) Brain.Sound.play('success');
         setTimeout(function () { window.location.href = 'workouts.html'; }, 1100);
       }
     });

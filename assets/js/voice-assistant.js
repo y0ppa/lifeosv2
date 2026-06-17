@@ -1,5 +1,5 @@
 /* ==========================================================================
-   LifeOS — Voice assistant engine
+   Brain — Voice assistant engine
    Thin wrapper around the Web Speech API (SpeechRecognition +
    SpeechSynthesis) with feature detection, graceful fallback to text
    input, mic-amplitude metering for the orb, and explicit state
@@ -34,7 +34,7 @@
   }
 
   function settingsData() {
-    return (global.LifeOS && global.LifeOS.State && global.LifeOS.State.data && global.LifeOS.State.data.settings.voice) || {};
+    return (global.Brain && global.Brain.State && global.Brain.State.data && global.Brain.State.data.settings.voice) || {};
   }
 
   // ---- microphone amplitude metering (visual only) ----
@@ -129,7 +129,7 @@
       recognition = buildRecognition();
       setState('listening');
       try { recognition.start(); } catch (e) { /* already started */ }
-      if (global.LifeOS && global.LifeOS.Sound) global.LifeOS.Sound.play('listen-start');
+      if (global.Brain && global.Brain.Sound) global.Brain.Sound.play('listen-start');
     }).catch(function (err) {
       setState('error');
       emit('error', err.message || 'mic-permission-denied');
@@ -142,7 +142,7 @@
       try { recognition.stop(); } catch (e) { /* noop */ }
     }
     stopMic();
-    if (global.LifeOS && global.LifeOS.Sound) global.LifeOS.Sound.play('listen-stop');
+    if (global.Brain && global.Brain.Sound) global.Brain.Sound.play('listen-stop');
     if (state === 'listening') setState('idle');
   }
 
@@ -203,8 +203,8 @@
     if (state === 'speaking') setState('idle');
   }
 
-  global.LifeOS = global.LifeOS || {};
-  global.LifeOS.Voice = {
+  global.Brain = global.Brain || {};
+  global.Brain.Voice = {
     isRecognitionSupported: !!SpeechRecognitionImpl,
     isSynthesisSupported: !!synth,
     setOrb: function (o) { orb = o; },
