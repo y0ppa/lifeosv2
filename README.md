@@ -4,17 +4,17 @@ A personal health and productivity command center — web dashboard + (planned)
 mobile app that syncs your phone's existing health, fitness, calendar, and
 email data instead of asking you to re-enter it.
 
-## Status: Phase 1 of a multi-phase build
+## Status: Phase 2 of a multi-phase build
 
 This repo is mid-migration from a pure frontend prototype into a real
 multi-platform product. Be precise about what that means right now:
 
 | Piece | Status |
 |---|---|
-| Web dashboard (`apps/web`) | **Working.** Deployed on Vercel. Most pages still run on `localStorage` sample data; `habits.html` is the first page actually wired to Supabase, as a proven migration pattern. |
-| Supabase auth (sign up/in/out, session, password reset) | **Working**, once you've connected a real Supabase project (see below). |
-| Database schema (20+ tables, RLS) | **Written and ready to apply** — `packages/database/supabase/migrations/0001_init_schema.sql`. Not yet applied to a live project until you run it (see `packages/database/README.md`). |
-| Mobile app (`apps/mobile`) | **Not started.** Phase 2. |
+| Web dashboard (`apps/web`) | **Working.** Deployed on Vercel. Most pages still run on `localStorage` sample data; `habits.html` is wired to live Supabase. |
+| Supabase auth (sign up/in/out, session, password reset) | **Working** — verified end-to-end against a live project (real signup, email confirmation, sign-in, RLS-scoped writes confirmed). |
+| Database schema (20+ tables, RLS) | **Applied to a live project and verified.** `packages/database/supabase/migrations/0001_init_schema.sql`. |
+| Mobile app (`apps/mobile`) | **Shell working.** Expo Router + TypeScript app: sign up/in/out and a live Supabase-backed Habits screen, verified end-to-end on Expo's web target. Runs in Expo Go on a real Android or iOS device — no Mac or Apple account needed for this part. |
 | Apple HealthKit / Android Health Connect | **Not started.** Designed in `IOS_HEALTHKIT_SETUP.md` / `ANDROID_HEALTH_CONNECT_SETUP.md`, no code yet. |
 | Google Calendar / Gmail OAuth | **Not started — explicitly deferred** at your request. Designed in `GOOGLE_OAUTH_SETUP.md`. |
 | Background sync engine | **Not started.** Designed in `SYNC_ARCHITECTURE.md` against the schema that does exist. |
@@ -28,18 +28,18 @@ this table again — several pieces here are "ready to build against," not
 ```
 apps/
   web/          — the dashboard (plain HTML/CSS/JS, ships today)
-  mobile/       — React Native + Expo app (Phase 2, doesn't exist yet)
+  mobile/       — React Native + Expo app — auth + Habits screen working
   api/          — server-side OAuth routes (Phase 2+, doesn't exist yet)
 packages/
   shared/       — TypeScript types + constants used by mobile/api
   database/     — Supabase schema migrations + generated types
-  integrations/ — HealthKit/Health Connect provider adapters (Phase 2, doesn't exist yet)
-  assistant-tools/ — shared assistant tool-call contracts (Phase 2, doesn't exist yet)
+  integrations/ — HealthKit/Health Connect provider adapters (not started yet)
+  assistant-tools/ — shared assistant tool-call contracts (not started yet)
 ```
 
 `packages/integrations` and `packages/assistant-tools` are listed in the
 target structure but intentionally not created yet — there's no value in
-an empty package before the mobile app that would consume it exists.
+an empty package before the health-sync code that would consume it exists.
 
 ## Quick start
 
@@ -48,13 +48,17 @@ npm install   # workspaces: apps/*, packages/*
 
 # run the web dashboard
 cd apps/web && python3 -m http.server 8080
+
+# run the mobile app (after copying apps/mobile/.env.example to .env)
+cd apps/mobile && npx expo start
 ```
 
 To connect the web app to a real Supabase backend instead of local demo
 data, see [`packages/database/README.md`](packages/database/README.md)
 (apply the schema) and copy
 [`apps/web/assets/js/supabase-config.example.js`](apps/web/assets/js/supabase-config.example.js)
-to `supabase-config.js` with your project's URL + anon key.
+to `supabase-config.js` with your project's URL + anon key. The mobile app
+uses the same project — see [`apps/mobile/README.md`](apps/mobile/README.md).
 
 Full command reference (mobile builds, EAS, Supabase CLI, Vercel deploy):
 [`MOBILE_SETUP.md`](MOBILE_SETUP.md).
@@ -62,6 +66,7 @@ Full command reference (mobile builds, EAS, Supabase CLI, Vercel deploy):
 ## Documentation index
 
 - [`apps/web/README.md`](apps/web/README.md) — web dashboard pages, architecture, voice assistant
+- [`apps/mobile/README.md`](apps/mobile/README.md) — mobile app architecture, running it in Expo Go
 - [`packages/database/README.md`](packages/database/README.md) — applying the schema, generating types
 - [`SYNC_ARCHITECTURE.md`](SYNC_ARCHITECTURE.md) — how health data sync is designed to work, and its real platform limitations
 - [`SECURITY.md`](SECURITY.md) — key handling, RLS, what's not encrypted yet

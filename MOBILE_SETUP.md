@@ -1,9 +1,11 @@
 # Mobile setup
 
-> **Status: Phase 2, not started.** `apps/mobile` does not exist in this
-> repo yet — Phase 1 was monorepo restructure + Supabase schema/auth + the
-> web dashboard. This doc is the concrete plan for when mobile work starts,
-> written now so the commands are exact instead of hand-waved later.
+> **Status: Phase 2, shell working.** `apps/mobile` exists and runs: sign
+> up/in/out and a live Supabase-backed Habits screen, verified end-to-end.
+> It currently uses only JS/React Native APIs (no custom native modules
+> yet), so it runs in plain **Expo Go** — no development build, no Android
+> Studio, no EAS account needed for any of this. That changes once
+> HealthKit/Health Connect are added (see the callout below).
 
 ## Prerequisites
 
@@ -11,10 +13,11 @@
 |---|---|
 | Node.js >= 20, npm | Everything |
 | [Expo CLI](https://docs.expo.dev/get-started/installation/) (`npx expo`, no global install needed) | Mobile app |
-| **Android**: Android Studio + an emulator, or a physical Android device with USB debugging | Android dev builds |
-| **iOS**: a Mac (or [EAS cloud builds](https://docs.expo.dev/build/introduction/)) + an Apple Developer Program membership ($99/yr) | iOS dev/production builds — **cannot be fully done on Windows**, see callout below |
-| Supabase project (already set up in Phase 1) | Auth + data for both platforms |
-| Expo account (free) | EAS builds |
+| A phone with the **Expo Go** app installed (iOS or Android) | Running the app today — this is all you need right now |
+| **Android**: Android Studio + an emulator | Only needed later for native dev builds (HealthKit/Health Connect) or if you don't have a physical device |
+| **iOS**: a Mac (or [EAS cloud builds](https://docs.expo.dev/build/introduction/)) + an Apple Developer Program membership ($99/yr) | Only needed once native iOS dev/production builds start — **cannot be fully done on Windows**, see callout below. Not needed for Expo Go. |
+| Supabase project (already set up, schema applied) | Auth + data for both platforms |
+| Expo account (free) | EAS builds only (not needed for Expo Go) |
 
 ### Windows-specific limitation (read this first)
 
@@ -34,7 +37,7 @@ This machine is Windows. That means:
 ## Install dependencies
 
 ```bash
-# from the repo root, once apps/mobile exists
+# from the repo root
 npm install
 ```
 
@@ -50,10 +53,26 @@ npx serve apps/web
 cd apps/web && python3 -m http.server 8080
 ```
 
-## Run the mobile app (development build, not Expo Go)
+## Run the mobile app today (Expo Go — no native build needed)
 
-Native HealthKit/Health Connect modules require a **development build**,
-not the plain Expo Go app (Expo Go can't load custom native modules).
+```bash
+cd apps/mobile
+cp .env.example .env    # paste your Supabase project URL + anon key
+npm install              # if you didn't already run it at the repo root
+npx expo start
+```
+
+Scan the printed QR code with the **Expo Go** app on a physical iPhone or
+Android phone — that's the whole setup, no Mac, no Android Studio, no
+Apple/Google developer account. Press `w` in the terminal to instead open
+it in a browser (useful for quick iteration, not a real test of native
+behavior).
+
+## Once HealthKit / Health Connect are added (not yet — see below)
+
+Native HealthKit/Health Connect modules will require a **development
+build** instead of plain Expo Go, since Expo Go can't load custom native
+modules:
 
 ```bash
 cd apps/mobile
@@ -101,7 +120,8 @@ Then add the project URL + anon key to `apps/mobile`'s env (Expo uses
 `EXPO_PUBLIC_`-prefixed vars, readable at build time):
 
 ```bash
-# apps/mobile/.env (gitignored; copy from .env.example once it exists)
+cp apps/mobile/.env.example apps/mobile/.env
+# apps/mobile/.env (gitignored)
 EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 ```
