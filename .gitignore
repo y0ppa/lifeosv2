@@ -1,3 +1,31 @@
 .vercel
 .claude/
 session-history/
+
+# Node / monorepo
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+npm-debug.log*
+
+# Env / secrets — never commit real values
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Expo / React Native (apps/mobile, added in Phase 2)
+.expo/
+.expo-shared/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Supabase CLI local state
+packages/database/supabase/.branches
+packages/database/supabase/.temp

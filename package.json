@@ -1,0 +1,17 @@
+{
+  "name": "brain",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Brain — personal health & productivity command center (web + mobile + backend monorepo).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:migration:new": "npm run migration:new --workspace packages/database",
+    "db:gen-types": "npm run gen-types --workspace packages/database"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

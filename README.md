@@ -1,68 +1,80 @@
-# Brain — Command Center
+# Brain
 
-A futuristic, voice-first personal dashboard for tracking workouts, nutrition, body weight, habits, work/school, and job applications — with an original AI assistant called **ARIA** (Adaptive Routine and Intelligence Assistant).
+A personal health and productivity command center — web dashboard + (planned)
+mobile app that syncs your phone's existing health, fitness, calendar, and
+email data instead of asking you to re-enter it.
 
-This is a static, client-only prototype: plain HTML, CSS, and JavaScript with no build step and no required backend. All data is realistic **sample data** and is persisted to your browser's `localStorage` so interactions survive a reload.
+## Status: Phase 1 of a multi-phase build
 
-## Running it
+This repo is mid-migration from a pure frontend prototype into a real
+multi-platform product. Be precise about what that means right now:
 
-Either works:
-
-1. **Open directly** — double-click [index.html](index.html). Everything runs client-side.
-2. **Local server** (recommended, needed for the most consistent behavior across browsers):
-   ```bash
-   python3 -m http.server 8080
-   # then visit http://localhost:8080
-   ```
-
-No npm install, no build tools, no external services required. An internet connection is only used to load Google Fonts (Barlow Condensed, Inter, JetBrains Mono); everything still works offline with system font fallbacks.
-
-## Pages
-
-| File | Purpose |
+| Piece | Status |
 |---|---|
-| `index.html` | Command Center home — ARIA orb, daily briefing, progress metrics, weight trend, today's workout, habits, application pipeline, weekly analysis |
-| `workouts.html` | Training split, upcoming workout, templates, history, personal records, muscle-group volume, strength trend, exercise search |
-| `workout-session.html` | Active workout logger — timer, sets/reps/weight/RPE, rest timer, add exercise, complete workout |
-| `nutrition.html` | Calorie/macro rings, meal timeline, food search, barcode scan demo, saved meals, recipes, grocery list generator |
-| `habits.html` | Daily checklist, weekly completion grid, streaks, categories, habit detail with mood check-in |
-| `work.html` | Tasks, assignments, projects, calendar events, focus timer, time tracking, completed work |
-| `applications.html` | Kanban job-application pipeline (Saved → Offer/Rejected) with full application detail |
-| `insights.html` | Trend charts across nutrition, training, habits, and work with 7/30/90-day and custom ranges |
-| `assistant.html` | Chat interface with ARIA — suggested prompts, fact vs. suggestion labeling, data-source references, inline confirmation cards |
-| `voice-console.html` | Full-screen voice mode — large AI orb, live transcript, voice controls, recent commands, text fallback |
-| `integrations.html` | Connected services (Apple Health, Health Connect, Google Calendar, Gmail, USDA FDC, Open Food Facts, GitHub, Push) |
-| `settings.html` | Profile, goals, training schedule, assistant/voice settings, privacy, notifications, appearance, data export/reset |
+| Web dashboard (`apps/web`) | **Working.** Deployed on Vercel. Most pages still run on `localStorage` sample data; `habits.html` is the first page actually wired to Supabase, as a proven migration pattern. |
+| Supabase auth (sign up/in/out, session, password reset) | **Working**, once you've connected a real Supabase project (see below). |
+| Database schema (20+ tables, RLS) | **Written and ready to apply** — `packages/database/supabase/migrations/0001_init_schema.sql`. Not yet applied to a live project until you run it (see `packages/database/README.md`). |
+| Mobile app (`apps/mobile`) | **Not started.** Phase 2. |
+| Apple HealthKit / Android Health Connect | **Not started.** Designed in `IOS_HEALTHKIT_SETUP.md` / `ANDROID_HEALTH_CONNECT_SETUP.md`, no code yet. |
+| Google Calendar / Gmail OAuth | **Not started — explicitly deferred** at your request. Designed in `GOOGLE_OAUTH_SETUP.md`. |
+| Background sync engine | **Not started.** Designed in `SYNC_ARCHITECTURE.md` against the schema that does exist. |
 
-## Architecture
+If a section below sounds like it's describing something finished, check
+this table again — several pieces here are "ready to build against," not
+"built."
+
+## Repo layout
 
 ```
-assets/
-  css/
-    styles.css      — design tokens, layout, navigation, shared components
-    jarvis-ui.css    — AI orb, voice console, boot sequence, chat, kanban
-  js/
-    data.js          — sample data + localStorage-backed state (Brain.State)
-    charts.js         — lightweight canvas line/bar/ring charts (no dependency)
-    assistant-orb.js  — canvas-based AI orb renderer with 8 visual states
-    voice-assistant.js— Web Speech API wrapper (recognition + synthesis)
-    voice-commands.js — natural-language command matching + demo responses
-    sound-controller.js — synthesized UI tones via Web Audio (no audio files)
-    app.js            — navigation injection, modals, toasts, theme, habits
+apps/
+  web/          — the dashboard (plain HTML/CSS/JS, ships today)
+  mobile/       — React Native + Expo app (Phase 2, doesn't exist yet)
+  api/          — server-side OAuth routes (Phase 2+, doesn't exist yet)
+packages/
+  shared/       — TypeScript types + constants used by mobile/api
+  database/     — Supabase schema migrations + generated types
+  integrations/ — HealthKit/Health Connect provider adapters (Phase 2, doesn't exist yet)
+  assistant-tools/ — shared assistant tool-call contracts (Phase 2, doesn't exist yet)
 ```
 
-Every page shares the same chrome (sidebar, topbar, bottom nav, modals) injected at runtime by `app.js`, so there is a single source of truth for navigation and shared widgets. Page-specific rendering lives in a small inline `<script>` at the bottom of each HTML file and reads/writes through `Brain.State`.
+`packages/integrations` and `packages/assistant-tools` are listed in the
+target structure but intentionally not created yet — there's no value in
+an empty package before the mobile app that would consume it exists.
 
-## Voice assistant (ARIA)
+## Quick start
 
-- Activate by clicking the central orb / mic button, the floating mic button on any page, the **Alt+Shift+A** shortcut, or by opening `voice-console.html` directly.
-- Uses `SpeechRecognition` / `webkitSpeechRecognition` and `SpeechSynthesis` when available, with full feature detection — unsupported browsers automatically fall back to text input with a clear notice.
-- Read-only questions ("How many calories do I have left?") answer immediately. Anything that changes data — rescheduling a workout, editing an application status, changing goals, disconnecting an integration, deleting records — shows a **Confirm / Edit / Cancel** card before anything is saved.
-- All microphone audio is processed locally by the browser's speech engine; nothing is uploaded. The mic only activates while listening, with a visible state indicator at all times, a one-click disable, and a full voice-history delete option in Settings.
-- Interface sounds are synthesized locally with the Web Audio API (no bundled audio files), off by default, with a master toggle and volume control in Settings.
+```bash
+npm install   # workspaces: apps/*, packages/*
 
-## Notes on scope
+# run the web dashboard
+cd apps/web && python3 -m http.server 8080
+```
 
-- This is a frontend prototype: there is no real backend, login, or live integration — "Connect" buttons on the Integrations page simulate a connection so the UI is fully interactive.
-- Chart data and the 30-day/12-week trend series are deterministically generated sample data (seeded, so values stay consistent across reloads unless you interact with them) — clearly framed as **sample data**, not real records.
-- Barcode scanning requests real camera access for the live preview but does not include a barcode-decoding library; use "Simulate scan result" to see the logging flow end to end.
+To connect the web app to a real Supabase backend instead of local demo
+data, see [`packages/database/README.md`](packages/database/README.md)
+(apply the schema) and copy
+[`apps/web/assets/js/supabase-config.example.js`](apps/web/assets/js/supabase-config.example.js)
+to `supabase-config.js` with your project's URL + anon key.
+
+Full command reference (mobile builds, EAS, Supabase CLI, Vercel deploy):
+[`MOBILE_SETUP.md`](MOBILE_SETUP.md).
+
+## Documentation index
+
+- [`apps/web/README.md`](apps/web/README.md) — web dashboard pages, architecture, voice assistant
+- [`packages/database/README.md`](packages/database/README.md) — applying the schema, generating types
+- [`SYNC_ARCHITECTURE.md`](SYNC_ARCHITECTURE.md) — how health data sync is designed to work, and its real platform limitations
+- [`SECURITY.md`](SECURITY.md) — key handling, RLS, what's not encrypted yet
+- [`PRIVACY.md`](PRIVACY.md) — consent model, what's actually implemented vs. planned
+- [`MOBILE_SETUP.md`](MOBILE_SETUP.md) — exact commands for installing, running, and building the mobile app
+- [`IOS_HEALTHKIT_SETUP.md`](IOS_HEALTHKIT_SETUP.md) — HealthKit plan, Windows/Mac/Apple-account constraints
+- [`ANDROID_HEALTH_CONNECT_SETUP.md`](ANDROID_HEALTH_CONNECT_SETUP.md) — Health Connect plan (buildable on Windows)
+- [`GOOGLE_OAUTH_SETUP.md`](GOOGLE_OAUTH_SETUP.md) — Calendar/Gmail OAuth plan (deferred, not started)
+
+## Why a monorepo for what's currently one static site
+
+Because the mobile app and web app need to share the same Supabase project,
+the same auth, and the same data types — `packages/shared` and
+`packages/database` exist so that sharing happens through one source of
+truth instead of copy-pasted constants drifting apart between platforms
+later.

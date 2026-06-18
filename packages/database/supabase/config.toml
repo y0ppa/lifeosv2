@@ -1,0 +1,15 @@
+[project]
+# Filled in automatically by `supabase link --project-ref <ref>`.
+# Safe to commit: a project ref is an identifier, not a secret.
+project_id = ""
+
+[db]
+major_version = 15
+
+[api]
+enabled = true
+port = 54321
+
+[studio]
+enabled = true
+port = 54323

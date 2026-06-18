@@ -47,6 +47,10 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hd-title" id="habit-detail-content"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="assets/js/supabase-config.js" onerror="console.warn('supabase-config.js not found - copy supabase-config.example.js')"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/auth.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/charts.js"></script>
 <script src="assets/js/assistant-orb.js"></script>
@@ -59,10 +63,98 @@
   var App = Brain.App, State = Brain.State, ICONS = App.ICONS;
   var WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   var activeCategory = 'All';
+  var USE_SUPABASE = Brain.isSupabaseConfigured && Brain.session;
+  var habitsCache = []; // normalized: {id, name, category, paused, streak, week[7], completedToday, todayLog}
+
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+  function daysAgoISO(n) { var d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
+
+  function computeWeekAndStreak(logs) {
+    var byDate = {};
+    logs.forEach(function (l) { byDate[l.log_date] = l; });
+    var week = [];
+    for (var i = 6; i >= 0; i--) week.push(byDate[daysAgoISO(i)] && byDate[daysAgoISO(i)].completed ? 1 : 0);
+    var streak = 0;
+    var offset = byDate[todayISO()] && byDate[todayISO()].completed ? 0 : 1;
+    for (var n = offset; n < 60; n++) {
+      var entry = byDate[daysAgoISO(n)];
+      if (entry && entry.completed) streak++; else break;
+    }
+    return { week: week, streak: streak, completedToday: !!(byDate[todayISO()] && byDate[todayISO()].completed), todayLog: byDate[todayISO()] || null };
+  }
+
+  /* ---- data access: Supabase when signed in, localStorage demo otherwise ---- */
+  var Data = {
+    list: function () {
+      if (!USE_SUPABASE) { habitsCache = State.data.habits; return Promise.resolve(habitsCache); }
+      return Brain.Supabase.from('habits').select('*').is('archived_at', null).order('created_at').then(function (res) {
+        if (res.error) { App.showToast('Could not load habits: ' + res.error.message, 'warn'); return []; }
+        var habits = res.data;
+        if (!habits.length) { habitsCache = []; return []; }
+        var ids = habits.map(function (h) { return h.id; });
+        return Brain.Supabase.from('habit_logs').select('habit_id,log_date,completed,mood,note').in('habit_id', ids).gte('log_date', daysAgoISO(59)).then(function (logRes) {
+          var logsByHabit = {};
+          (logRes.data || []).forEach(function (l) { (logsByHabit[l.habit_id] = logsByHabit[l.habit_id] || []).push(l); });
+          habitsCache = habits.map(function (h) {
+            var calc = computeWeekAndStreak(logsByHabit[h.id] || []);
+            return {
+              id: h.id, name: h.name, category: h.category, paused: h.paused,
+              streak: calc.streak, week: calc.week, completedToday: calc.completedToday, todayLog: calc.todayLog
+            };
+          });
+          return habitsCache;
+        });
+      });
+    },
+    toggle: function (id) {
+      if (!USE_SUPABASE) {
+        var h = State.data.habits.filter(function (x) { return x.id === id; })[0];
+        if (!h) return Promise.resolve();
+        h.completedToday = !h.completedToday;
+        h.week[h.week.length - 1] = h.completedToday ? 1 : 0;
+        h.streak = h.completedToday ? h.streak + 1 : Math.max(0, h.streak - 1);
+        State.save();
+        return Promise.resolve();
+      }
+      var habit = habitsCache.filter(function (x) { return x.id === id; })[0];
+      var nextCompleted = !(habit && habit.completedToday);
+      return Brain.Supabase.from('habit_logs').upsert({
+        habit_id: id, user_id: Brain.session.user.id, log_date: todayISO(), completed: nextCompleted,
+        mood: habit && habit.todayLog ? habit.todayLog.mood : null, note: habit && habit.todayLog ? habit.todayLog.note : null
+      }, { onConflict: 'habit_id,log_date' });
+    },
+    create: function (name) {
+      if (!USE_SUPABASE) {
+        State.data.habits.push({ id: 'h' + Date.now(), name: name, category: 'Growth', completedToday: false, streak: 0, week: [0, 0, 0, 0, 0, 0, 0], paused: false });
+        State.save();
+        return Promise.resolve();
+      }
+      return Brain.Supabase.from('habits').insert({ name: name, category: 'Growth', user_id: Brain.session.user.id });
+    },
+    pause: function (id, nextPaused) {
+      if (!USE_SUPABASE) {
+        var h = State.data.habits.filter(function (x) { return x.id === id; })[0];
+        if (h) { h.paused = nextPaused; State.save(); }
+        return Promise.resolve();
+      }
+      return Brain.Supabase.from('habits').update({ paused: nextPaused }).eq('id', id);
+    },
+    saveMood: function (id, mood) {
+      if (!USE_SUPABASE) {
+        localStorage.setItem('brain.mood.' + id + '.' + todayISO(), mood);
+        return Promise.resolve();
+      }
+      var habit = habitsCache.filter(function (x) { return x.id === id; })[0];
+      var completed = !!(habit && habit.completedToday);
+      return Brain.Supabase.from('habit_logs').upsert({
+        habit_id: id, user_id: Brain.session.user.id, log_date: todayISO(), completed: completed, mood: mood
+      }, { onConflict: 'habit_id,log_date' });
+    }
+  };
 
   function categories() {
     var set = {};
-    State.data.habits.forEach(function (h) { set[h.category] = true; });
+    habitsCache.forEach(function (h) { set[h.category] = true; });
     return ['All'].concat(Object.keys(set));
   }
 
@@ -71,16 +163,17 @@
       return '<button type="button" class="tab-btn" role="tab" aria-selected="' + (c === activeCategory) + '" data-cat="' + c + '">' + c + '</button>';
     }).join('');
     document.querySelectorAll('[data-cat]').forEach(function (btn) {
-      btn.addEventListener('click', function () { activeCategory = btn.getAttribute('data-cat'); renderAll(); });
+      btn.addEventListener('click', function () { activeCategory = btn.getAttribute('data-cat'); paint(); });
     });
   }
 
   function filteredHabits() {
-    return activeCategory === 'All' ? State.data.habits : State.data.habits.filter(function (h) { return h.category === activeCategory; });
+    return activeCategory === 'All' ? habitsCache : habitsCache.filter(function (h) { return h.category === activeCategory; });
   }
 
   function renderSummary() {
-    var habits = State.data.habits;
+    var habits = habitsCache;
+    if (!habits.length) { document.getElementById('habit-summary-grid').innerHTML = ''; return; }
     var doneToday = habits.filter(function (h) { return h.completedToday; }).length;
     var avgStreak = Math.round(habits.reduce(function (a, h) { return a + h.streak; }, 0) / habits.length);
     var weekPct = Math.round(habits.reduce(function (a, h) { return a + h.week.filter(Boolean).length; }, 0) / (habits.length * 7) * 100);
@@ -117,10 +210,9 @@
   }
 
   function openDetail(id) {
-    var h = State.data.habits.filter(function (x) { return x.id === id; })[0];
+    var h = habitsCache.filter(function (x) { return x.id === id; })[0];
     if (!h) return;
-    var moodKey = 'lifeos.mood.' + id + '.' + new Date().toISOString().slice(0, 10);
-    var savedMood = localStorage.getItem(moodKey);
+    var savedMood = USE_SUPABASE ? (h.todayLog && h.todayLog.mood) : localStorage.getItem('brain.mood.' + id + '.' + todayISO());
     var moods = ['Great', 'Good', 'Okay', 'Rough'];
     document.getElementById('habit-detail-content').innerHTML = '' +
       '<div class="modal-head"><h2 class="modal-title" id="hd-title">' + App.escapeHtml(h.name) + '</h2><button type="button" class="modal-close" data-modal-close aria-label="Close">' + ICONS.close + '</button></div>' +
@@ -143,18 +235,19 @@
     App.openModal('modal-habit-detail');
     document.querySelectorAll('#mood-buttons [data-mood]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        localStorage.setItem(moodKey, btn.getAttribute('data-mood'));
-        document.querySelectorAll('#mood-buttons [data-mood]').forEach(function (b) { b.className = 'btn btn-secondary btn-sm'; });
-        btn.className = 'btn btn-primary btn-sm';
-        App.showToast('Mood logged for ' + h.name + '.', 'success');
+        Data.saveMood(id, btn.getAttribute('data-mood')).then(function () {
+          document.querySelectorAll('#mood-buttons [data-mood]').forEach(function (b) { b.className = 'btn btn-secondary btn-sm'; });
+          btn.className = 'btn btn-primary btn-sm';
+          App.showToast('Mood logged for ' + h.name + '.', 'success');
+        });
       });
     });
     document.getElementById('pause-habit-btn').addEventListener('click', function () {
-      h.paused = !h.paused;
-      State.save();
-      App.closeModal('modal-habit-detail');
-      App.showToast(h.paused ? '"' + h.name + '" paused.' : '"' + h.name + '" resumed.', 'info');
-      renderAll();
+      Data.pause(id, !h.paused).then(function () {
+        App.closeModal('modal-habit-detail');
+        App.showToast(!h.paused ? '"' + h.name + '" paused.' : '"' + h.name + '" resumed.', 'info');
+        refresh();
+      });
     });
     document.querySelectorAll('#modal-habit-detail [data-modal-close]').forEach(function (b) { b.addEventListener('click', function () { App.closeModal('modal-habit-detail'); }); });
   }
@@ -162,15 +255,27 @@
   document.getElementById('create-habit-btn').addEventListener('click', function () {
     var name = window.prompt('New habit name');
     if (!name) return;
-    State.data.habits.push({ id: 'h' + Date.now(), name: name, category: 'Growth', completedToday: false, streak: 0, week: [0, 0, 0, 0, 0, 0, 0], paused: false });
-    State.save();
-    App.showToast('"' + name + '" habit created.', 'success');
-    renderAll();
+    Data.create(name).then(function () {
+      App.showToast('"' + name + '" habit created.', 'success');
+      refresh();
+    });
   });
 
-  function renderAll() { renderTabs(); renderSummary(); renderChecklist(); renderWeeklyGrid(); }
-  renderAll();
-  document.addEventListener('lifeos:state-changed', renderAll);
+  document.getElementById('habit-checklist').addEventListener('click', function (e) {
+    if (!USE_SUPABASE) return; // local-demo toggling is already handled by app.js's global delegate
+    var btn = e.target.closest('[data-habit-toggle]');
+    if (!btn) return;
+    Data.toggle(btn.getAttribute('data-habit-toggle')).then(function () {
+      if (Brain.Sound) Brain.Sound.play('success');
+      refresh();
+    });
+  }, true);
+
+  function paint() { renderTabs(); renderSummary(); renderChecklist(); renderWeeklyGrid(); }
+  function refresh() { Data.list().then(paint); }
+
+  refresh();
+  document.addEventListener('lifeos:state-changed', function () { if (!USE_SUPABASE) refresh(); });
 })();
 </script>
 </body>

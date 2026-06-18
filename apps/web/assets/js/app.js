@@ -529,19 +529,27 @@
   /* Init                                                                   */
   /* ---------------------------------------------------------------------- */
   function init() {
-    applyTheme(State.data.settings.theme);
-    renderSidebar();
-    renderBottomNav();
-    renderTopbar();
-    renderGlobalModals();
-    wireModalDismiss();
-    wireHabitToggles(document);
-    injectVoiceFab();
-    wireGlobalShortcut();
-    runBootSequence();
-    var themeBtn = document.getElementById('theme-toggle-btn');
-    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-    document.dispatchEvent(new CustomEvent('lifeos:ready'));
+    var page = currentPage();
+    var guard = (Brain.Auth && Brain.Auth.guardPage) ? Brain.Auth.guardPage(page) : Promise.resolve(null);
+    guard.then(function (session) {
+      if (Brain.Auth && Brain.Auth.PUBLIC_PAGES.indexOf(page) === -1 && Brain.isSupabaseConfigured && !session) {
+        return; // guardPage already redirected to login.html
+      }
+      Brain.session = session;
+      applyTheme(State.data.settings.theme);
+      renderSidebar();
+      renderBottomNav();
+      renderTopbar();
+      renderGlobalModals();
+      wireModalDismiss();
+      wireHabitToggles(document);
+      injectVoiceFab();
+      wireGlobalShortcut();
+      runBootSequence();
+      var themeBtn = document.getElementById('theme-toggle-btn');
+      if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+      document.dispatchEvent(new CustomEvent('lifeos:ready'));
+    });
   }
 
   if (document.readyState === 'loading') {

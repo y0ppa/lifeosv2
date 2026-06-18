@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Brain</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/jarvis-ui.css">
+<style>
+  .auth-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
+  .auth-card { width: 100%; max-width: 400px; }
+  .auth-brand { display: flex; align-items: center; gap: var(--sp-3); justify-content: center; margin-bottom: var(--sp-6); }
+  .auth-error { font-size: 13px; color: var(--accent-red); background: var(--accent-red-soft); border-radius: var(--r-sm); padding: var(--sp-3); display: none; }
+  .auth-success { font-size: 13px; color: var(--accent-green); background: var(--accent-green-soft); border-radius: var(--r-sm); padding: var(--sp-3); display: none; }
+  .auth-foot { text-align: center; margin-top: var(--sp-5); font-size: 13px; color: var(--text-tertiary); }
+  .auth-foot button { background: none; border: none; color: var(--accent-cyan); cursor: pointer; font-weight: 600; font-size: 13px; padding: 0; }
+  .not-configured-note { font-size: 12.5px; color: var(--accent-amber); background: var(--accent-amber-soft); border-radius: var(--r-sm); padding: var(--sp-3); margin-bottom: var(--sp-4); }
+</style>
+</head>
+<body data-page="login">
+<div class="auth-shell">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-mark" style="width:36px;height:36px"></span>
+      <span class="brand-name" style="font-size:22px">Br<span>ain</span></span>
+    </div>
+
+    <div class="panel panel-pad">
+      <div class="tabs" id="auth-tabs" role="tablist" aria-label="Sign in or sign up" style="width:100%;margin-bottom:var(--sp-5)">
+        <button type="button" class="tab-btn" style="flex:1" role="tab" aria-selected="true" data-mode="signin">Sign in</button>
+        <button type="button" class="tab-btn" style="flex:1" role="tab" aria-selected="false" data-mode="signup">Sign up</button>
+      </div>
+
+      <p class="not-configured-note" id="not-configured-note" hidden>Supabase isn't configured yet (see <code>apps/web/assets/js/supabase-config.example.js</code>). The dashboard will run in local demo mode until it is.</p>
+      <p class="auth-error" id="auth-error" role="alert"></p>
+      <p class="auth-success" id="auth-success" role="status"></p>
+
+      <form id="auth-form">
+        <div class="field" style="margin-bottom:var(--sp-3)">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field" style="margin-bottom:var(--sp-2)">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required>
+        </div>
+        <div style="text-align:right;margin-bottom:var(--sp-4)">
+          <button type="button" class="auth-foot" id="forgot-password-btn" style="background:none;border:none;color:var(--accent-cyan);cursor:pointer;font-size:12.5px;padding:0">Forgot password?</button>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Sign in</button>
+      </form>
+
+      <p class="auth-foot" id="demo-mode-link" hidden>Or <button type="button" id="continue-demo-btn">continue in local demo mode</button> without an account.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="assets/js/supabase-config.js" onerror="console.warn('supabase-config.js not found — copy supabase-config.example.js and fill in your project values.')"></script>
+<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+(function () {
+  var mode = 'signin';
+  var form = document.getElementById('auth-form');
+  var submitBtn = document.getElementById('auth-submit-btn');
+  var errorEl = document.getElementById('auth-error');
+  var successEl = document.getElementById('auth-success');
+
+  if (!window.Brain.isSupabaseConfigured) {
+    document.getElementById('not-configured-note').hidden = false;
+    document.getElementById('demo-mode-link').hidden = false;
+  } else {
+    // Already signed in? Skip straight to the dashboard.
+    Brain.Auth.getSession().then(function (session) { if (session) window.location.replace('index.html'); });
+  }
+
+  document.getElementById('continue-demo-btn').addEventListener('click', function () {
+    window.location.href = 'index.html';
+  });
+
+  document.querySelectorAll('#auth-tabs [data-mode]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      mode = btn.getAttribute('data-mode');
+      document.querySelectorAll('#auth-tabs [data-mode]').forEach(function (b) { b.setAttribute('aria-selected', b === btn); });
+      submitBtn.textContent = mode === 'signup' ? 'Create account' : 'Sign in';
+      document.getElementById('auth-password').setAttribute('autocomplete', mode === 'signup' ? 'new-password' : 'current-password');
+      errorEl.style.display = 'none';
+      successEl.style.display = 'none';
+    });
+  });
+
+  function showError(message) {
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+    successEl.style.display = 'none';
+  }
+  function showSuccess(message) {
+    successEl.textContent = message;
+    successEl.style.display = 'block';
+    errorEl.style.display = 'none';
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!window.Brain.isSupabaseConfigured) { showError('Supabase is not configured yet.'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    var password = document.getElementById('auth-password').value;
+    submitBtn.classList.add('btn-loading');
+    submitBtn.disabled = true;
+    var action = mode === 'signup' ? Brain.Auth.signUp(email, password) : Brain.Auth.signIn(email, password);
+    action.then(function (res) {
+      submitBtn.classList.remove('btn-loading');
+      submitBtn.disabled = false;
+      if (res.error) { showError(res.error.message); return; }
+      if (mode === 'signup' && res.data && !res.data.session) {
+        showSuccess('Check your email to confirm your account, then sign in.');
+        return;
+      }
+      window.location.replace('index.html');
+    }).catch(function (err) {
+      submitBtn.classList.remove('btn-loading');
+      submitBtn.disabled = false;
+      showError(err.message || 'Something went wrong.');
+    });
+  });
+
+  document.getElementById('forgot-password-btn').addEventListener('click', function () {
+    if (!window.Brain.isSupabaseConfigured) { showError('Supabase is not configured yet.'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    if (!email) { showError('Enter your email above first, then tap "Forgot password?" again.'); return; }
+    Brain.Auth.requestPasswordReset(email).then(function (res) {
+      if (res.error) { showError(res.error.message); return; }
+      showSuccess('Password reset email sent to ' + email + '.');
+    });
+  });
+})();
+</script>
+</body>
+</html>

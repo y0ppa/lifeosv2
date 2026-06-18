@@ -1,0 +1,12 @@
+{
+  "name": "@brain/database",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Supabase schema (migrations) and generated types for Brain.",
+  "scripts": {
+    "link": "supabase link --project-ref $SUPABASE_PROJECT_REF",
+    "migration:new": "supabase migration new",
+    "db:push": "supabase db push",
+    "gen-types": "supabase gen types typescript --linked > types/database.types.ts"
+  }
+}
