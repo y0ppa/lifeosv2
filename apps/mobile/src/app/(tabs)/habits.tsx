@@ -5,8 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+
+const C = Colors.dark;
 
 type HabitRow = Habit & { completedToday: boolean; streak: number };
 
@@ -117,18 +120,18 @@ export default function HabitsScreen() {
           <TextInput
             style={styles.input}
             placeholder="New habit name"
-            placeholderTextColor="#888"
+            placeholderTextColor={C.textTertiary}
             value={newHabitName}
             onChangeText={setNewHabitName}
             onSubmitEditing={createHabit}
           />
           <Pressable style={styles.addButton} onPress={createHabit} disabled={creating}>
-            {creating ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.addButtonText}>Add</ThemedText>}
+            {creating ? <ActivityIndicator color={C.textOnAccent} /> : <ThemedText style={styles.addButtonText}>Add</ThemedText>}
           </Pressable>
         </View>
 
         {loading ? (
-          <ActivityIndicator style={styles.loading} />
+          <ActivityIndicator style={styles.loading} color={C.accentCyan} />
         ) : (
           <FlatList
             data={habits}
@@ -165,41 +168,42 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#3a3a3c',
+    borderColor: C.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#fff',
+    color: C.text,
+    backgroundColor: C.backgroundElement,
   },
   addButton: {
-    backgroundColor: '#0a84ff',
+    backgroundColor: C.accentCyan,
     borderRadius: 8,
     paddingHorizontal: 18,
     justifyContent: 'center',
   },
-  addButtonText: { color: '#fff', fontWeight: '600' },
+  addButtonText: { color: C.textOnAccent, fontWeight: '600' },
   loading: { marginTop: 24 },
-  empty: { textAlign: 'center', opacity: 0.6, marginTop: 24 },
+  empty: { textAlign: 'center', opacity: 0.6, marginTop: 24, color: C.textSecondary },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2c',
+    borderBottomColor: C.border,
   },
   checkbox: {
     width: 28,
     height: 28,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#0a84ff',
+    borderColor: C.accentCyan,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxDone: { backgroundColor: '#0a84ff' },
-  checkmark: { color: '#fff' },
+  checkboxDone: { backgroundColor: C.accentCyan },
+  checkmark: { color: C.textOnAccent },
   habitInfo: { flex: 1 },
-  category: { opacity: 0.6 },
-  streak: { opacity: 0.7 },
+  category: { opacity: 0.6, color: C.textSecondary },
+  streak: { opacity: 0.7, color: C.textSecondary },
 });

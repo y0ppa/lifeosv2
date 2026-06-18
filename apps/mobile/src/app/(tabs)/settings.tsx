@@ -3,7 +3,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
+
+const C = Colors.dark;
 
 export default function SettingsScreen() {
   const { session, signOut } = useAuth();
@@ -26,13 +29,13 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1, paddingHorizontal: 24, paddingTop: 32, gap: 16 },
-  email: { opacity: 0.7 },
+  email: { opacity: 0.7, color: C.textSecondary },
   signOutButton: {
-    backgroundColor: '#ff453a',
+    backgroundColor: C.accentRed,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
   },
-  signOutText: { color: '#fff' },
+  signOutText: { color: C.textOnAccent },
 });

@@ -7,6 +7,10 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// Brain is a dark, "ARIA"-branded UI by design (mirrors apps/web, which
+// forces data-theme="dark" on its auth pages) — there is no light theme
+// yet, so useTheme() always resolves to `dark` below rather than half
+// -supporting a system light mode that hardcoded-color inputs would break.
 export const Colors = {
   light: {
     text: '#000000',
@@ -16,11 +20,17 @@ export const Colors = {
     textSecondary: '#60646C',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#eaf2fb',
+    background: '#05070c',
+    backgroundElement: '#0e1420',
+    backgroundSelected: '#11192a',
+    textSecondary: '#97a6bd',
+    textTertiary: '#5c6b85',
+    textOnAccent: '#03141a',
+    accentCyan: '#22d3ee',
+    accentRed: '#fb7185',
+    accentGreen: '#34d399',
+    border: 'rgba(125, 211, 252, 0.18)',
   },
 } as const;
 

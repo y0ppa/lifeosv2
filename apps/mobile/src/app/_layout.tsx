@@ -1,9 +1,24 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
+import { Colors } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+
+// Brain is dark-only for now (see constants/theme.ts) — branded with the
+// app's cyan accent instead of React Navigation's default iOS blue.
+const BrainNavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: Colors.dark.accentCyan,
+    background: Colors.dark.background,
+    card: Colors.dark.backgroundElement,
+    text: Colors.dark.text,
+    border: Colors.dark.border,
+  },
+};
 
 function AuthGate() {
   const { session, loading } = useAuth();
@@ -22,8 +37,14 @@ function AuthGate() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: Colors.dark.background,
+        }}>
+        <ActivityIndicator color={Colors.dark.accentCyan} />
       </View>
     );
   }
@@ -32,10 +53,9 @@ function AuthGate() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={BrainNavigationTheme}>
         <AuthGate />
       </ThemeProvider>
     </AuthProvider>
