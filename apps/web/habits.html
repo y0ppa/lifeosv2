@@ -63,7 +63,7 @@
   var App = Brain.App, State = Brain.State, ICONS = App.ICONS;
   var WEEK_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   var activeCategory = 'All';
-  var USE_SUPABASE = Brain.isSupabaseConfigured && Brain.session;
+  var USE_SUPABASE = false; // resolved once Brain.session is known — see 'lifeos:ready' below
   var habitsCache = []; // normalized: {id, name, category, paused, streak, week[7], completedToday, todayLog}
 
   function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -274,7 +274,10 @@
   function paint() { renderTabs(); renderSummary(); renderChecklist(); renderWeeklyGrid(); }
   function refresh() { Data.list().then(paint); }
 
-  refresh();
+  document.addEventListener('lifeos:ready', function () {
+    USE_SUPABASE = Brain.isSupabaseConfigured && !!Brain.session;
+    refresh();
+  });
   document.addEventListener('lifeos:state-changed', function () { if (!USE_SUPABASE) refresh(); });
 })();
 </script>
